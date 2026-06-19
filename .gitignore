@@ -1,0 +1,62 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PVSnesLib build artifacts
+#
+# Everything below is generated from tracked source (C, hand-written .asm,
+# PNG/BMP art, IT/WAV audio). `make clean` removes most of it; this list also
+# keeps `git status` clean if a build aborts partway. Patterns have no leading
+# slash, so they match in any subdirectory (slice1/, slice2/, …).
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ROM output + Mesen debugger symbol file (and our portable-sed temp files)
+*.sfc
+*.sym
+*.sym.tmp
+
+# Linker scratch file
+linkfile
+
+# C → asm → obj intermediate stages (816-tcc / 816-opt / constify / wla-65816).
+# NOTE: hand-written assembly sources use the .asm extension and ARE tracked
+# (e.g. hdr.asm, data.asm). Only the generated .ps/.asp/.obj stages are ignored;
+# make auto-deletes these on a successful build anyway.
+*.ps
+*.asp
+*.obj
+
+# Debug dumps — only produced when PVSNESLIB_DEBUG=1
+*.dbg
+
+# gfx4snes outputs (regenerated from the source .png/.bmp).
+# In this toolchain, generated assembly *includes* use the .as / .inc extensions,
+# while your hand-written assembly uses .asm — so ignoring these is safe.
+*.pic
+*.pal
+*.map
+*.pc7
+*.mp7
+*.til
+*.m16
+*.b16
+*.o16
+*.t16
+*.as
+*.inc
+
+# smconv / snesbrr audio outputs (regenerated from .it / .wav).
+# The generated soundbank has a .asm extension, so ignore it by name rather than
+# globbing *.asm (which would wrongly catch hand-written assembly).
+soundbank.asm
+soundbank.h
+soundbank.bnk
+*.bnk
+*.brr
+
+# ─────────────────────────────────────────────────────────────────────────────
+# macOS / editor noise
+# ─────────────────────────────────────────────────────────────────────────────
+.DS_Store
+*.swp
+
+# Local clangd config — contains machine-specific absolute include paths.
+# Lets the editor resolve <snes.h>; not used by the actual build (816-tcc).
+compile_flags.txt
