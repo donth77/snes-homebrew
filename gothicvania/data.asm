@@ -1,0 +1,74 @@
+.include "hdr.asm"
+
+; --- Level = TWO backgrounds, exactly the demo's two layers (built by tools/build_level.py;
+;     rendered by our own lockstep page-streamer, not PVSnesLib's map engine). Splitting the
+;     layers instead of flattening keeps each tileset under 1024 tiles, so both are pixel-exact
+;     with no lossy merge. Each .incbin stays under WLA's 32KB section (= one LoROM bank); a DMA
+;     never crosses a bank, and a page is bank-internal, so every page DMA is hardware-safe. ---
+
+; Ground layer (Main: grass + dirt + skulls) -> BG0 (front), palette 0
+.section ".rodata_groundtiles" superfree
+groundtiles:    .incbin "res/level/ground_tileset.pic"
+groundtilesend:
+groundpal:      .incbin "res/level/ground_tileset.pal"
+groundpalend:
+.ends
+.section ".rodata_groundpagesA" superfree
+groundpagesA:   .incbin "res/level/ground_pagesA.bin"   ; pages 0..14
+.ends
+.section ".rodata_groundpagesB" superfree
+groundpagesB:   .incbin "res/level/ground_pagesB.bin"   ; pages 15..18
+.ends
+
+; Decoration layer (Back: trees + gravestones + crosses) -> BG1 (behind), palette 1
+.section ".rodata_decotiles" superfree
+decotiles:      .incbin "res/level/deco_tileset.pic"
+decotilesend:
+decopal:        .incbin "res/level/deco_tileset.pal"
+decopalend:
+.ends
+.section ".rodata_decopagesA" superfree
+decopagesA:     .incbin "res/level/deco_pagesA.bin"     ; pages 0..14
+.ends
+.section ".rodata_decopagesB" superfree
+decopagesB:     .incbin "res/level/deco_pagesB.bin"     ; pages 15..18
+.ends
+
+; Parallax far layer: mountains silhouette -> BG2 (2bpp / 4-colour). Static repeating 512px
+; background (56 tiles + a 64x32 map), scrolled at 0.07x; no streaming.
+.section ".rodata_parallax" superfree
+parallaxtiles:  .incbin "res/level/parallax_tiles.pic"
+parallaxtilesend:
+parallaxpal:    .incbin "res/level/parallax_tiles.pal"
+parallaxpalend:
+parallaxmap:    .incbin "res/level/parallax_map.bin"     ; two 32x32 screens (4096B)
+.ends
+
+; Sky gradient: per-scanline backdrop-colour HDMA table (setModeHdmaColor, channel 6).
+.section ".rodata_sky" superfree
+sky_gradient:   .incbin "res/level/sky_gradient.bin"
+.ends
+
+; Moon: a single 64x64 OBJ sprite (own palette), fixed in the sky, drawn behind the mountains.
+.section ".rodata_moon" superfree
+moontiles:      .incbin "res/moon.pic"
+moontilesend:
+moonpal:        .incbin "res/moon.pal"
+moonpalend:
+.ends
+
+; --- Hero animations (CC0, adapted by tools/adapt_hero.py): 20 64x64 frames as one
+;     strip, split into banks so the player can DMA the current frame per change. ---
+.section ".rodata_heroA" superfree
+hero_a:         .incbin "res/hero_a.bin"   ; frames 0..6  (each frame = one 4KB L|R band)
+.ends
+.section ".rodata_heroB" superfree
+hero_b:         .incbin "res/hero_b.bin"   ; frames 7..13
+.ends
+.section ".rodata_heroC" superfree
+hero_c:         .incbin "res/hero_c.bin"   ; frames 14..19
+.ends
+.section ".rodata_heropal" superfree
+hero_pal:       .incbin "res/hero.pal"
+hero_palend:
+.ends

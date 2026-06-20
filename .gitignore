@@ -60,3 +60,5 @@ soundbank.bnk
 # Local clangd config — contains machine-specific absolute include paths.
 # Lets the editor resolve <snes.h>; not used by the actual build (816-tcc).
 compile_flags.txt
+docs/
+gothicvania/preview
