@@ -49,6 +49,12 @@ res/moon.pic: res/moon.png
 	$(GFXCONV) -s 64 -o 16 -u 16 -R -t png -i res/moon.png
 	touch data.asm
 
+# Title screen overlays: "GothicVania" logo (BG0) + "PRESS START" (BG1), 4bpp .pic/.pal/.map emitted
+# directly by adapt_title.py (like adapt_parallax), composited over the live moon/mountains/sky by main.c.
+res/title_logo.pic: tools/adapt_title.py
+	python3 tools/adapt_title.py
+	touch data.asm
+
 # Hero: all animations -> one 64x64 feet-anchored frame strip (tools/adapt_hero.py),
 # then gfx4snes -R (keep every tile so each frame is exactly 64 tiles = 2048 bytes),
 # then split into two banks so the player code can DMA one frame at a time.
@@ -64,4 +70,4 @@ res/hero_a.bin: res/hero.pic
 	dd if=res/hero.pic of=res/hero_c.bin bs=4096 skip=14 2>/dev/null
 	touch data.asm
 
-bitmaps: res/hero_a.bin res/level/.stamp res/level/ground_tileset.pic res/level/parallax_tiles.pic res/level/sky_coldata.bin res/moon.pic
+bitmaps: res/hero_a.bin res/level/.stamp res/level/ground_tileset.pic res/level/parallax_tiles.pic res/level/sky_coldata.bin res/moon.pic res/title_logo.pic

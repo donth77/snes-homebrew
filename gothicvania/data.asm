@@ -51,6 +51,23 @@ parallaxmap:    .incbin "res/level/parallax_map.bin"     ; two 32x32 screens (40
 sky_coldata:    .incbin "res/level/sky_coldata.bin"
 .ends
 
+; Title screen overlays: "GothicVania" logo -> BG0, "PRESS START" -> BG1 (both 4bpp), composited over
+; the live moon + scrolling mountains + sky-gradient scene (the demo's TitleScreen, sans credits/instr).
+.section ".rodata_title" superfree
+title_logo_tiles:  .incbin "res/title_logo.pic"
+title_logo_tilesend:
+title_logo_pal:    .incbin "res/title_logo.pal"
+title_logo_map:    .incbin "res/title_logo.map"
+title_press_tiles: .incbin "res/title_press.pic"
+title_press_tilesend:
+title_press_pal:   .incbin "res/title_press.pal"
+title_press_map:   .incbin "res/title_press.map"
+title_thanks_tiles: .incbin "res/title_thanks.pic"   ; END screen "THANKS FOR PLAYING" overlay (BG0)
+title_thanks_tilesend:
+title_thanks_pal:  .incbin "res/title_thanks.pal"
+title_thanks_map:  .incbin "res/title_thanks.map"
+.ends
+
 ; Moon: a single 64x64 OBJ sprite (own palette), fixed in the sky, drawn behind the mountains.
 .section ".rodata_moon" superfree
 moontiles:      .incbin "res/moon.pic"
