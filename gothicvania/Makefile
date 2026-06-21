@@ -5,7 +5,7 @@ endif
 # Audio: title song (Title.mid) + in-game Baroque (Baroque.mid) -> .it (tools/mid2it.py) -> ONE soundbank
 # via smconv. AUDIOFILES order sets the MOD_* indices: title.it -> MOD_TITLE(0), song.it -> MOD_SONG(1).
 # (Must be set BEFORE including snes_rules, which generates + links $(SOUNDBANK).asm.)
-AUDIOFILES := res/title.it res/song.it
+AUDIOFILES := res/title.it res/baroque.it
 export SOUNDBANK := res/soundbank
 
 include ${PVSNESLIB_HOME}/devkitsnes/snes_rules
@@ -27,7 +27,7 @@ clean: cleanBuildRes cleanRom cleanGfx
 # keeps every tile (no reduction/reorder) so page tile indices stay 1:1 — NO tmx2snes.
 #---------------------------------------------------------------------------------
 # MIDI -> Impulse Tracker modules (tools/mid2it.py); snes_rules' smconv packs them into the soundbank.
-res/song.it: tools/mid2it.py assets/Baroque.mid
+res/baroque.it: tools/mid2it.py assets/Baroque.mid
 	python3 tools/mid2it.py
 res/title.it: tools/mid2it.py assets/Title.mid
 	python3 tools/mid2it.py title

@@ -182,7 +182,7 @@ def selftest():
     write_it(os.path.join(RES, "test.it"), "selftest",
              samples, instruments, [(rows, packed)], [0, 255], speed=6, tempo=125, num_channels=1)
 
-def convert_midi(path, out_name="song.it", song_name="Gothic Baroque", tempo=145):
+def convert_midi(path, out_name="baroque.it", song_name="Gothic Baroque", tempo=145):
     import mido
     mid = mido.MidiFile(path)
     tpb = mid.ticks_per_beat                      # 960

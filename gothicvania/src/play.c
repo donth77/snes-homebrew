@@ -69,7 +69,7 @@ GameState playState(void)
 
     armSkyGradient();   // level.c: ch6 COLOR-MATH sky -- MUST be after setParallaxScrolling (bank-clobber)
 
-    spcLoad(MOD_SONG);                            // load the in-game Baroque track (during force blank)
+    spcLoad(MOD_BAROQUE);                         // load the in-game Baroque track (during force blank)
     setScreenOn();
     spcPlay(0);                                   // play it (loops)
 
