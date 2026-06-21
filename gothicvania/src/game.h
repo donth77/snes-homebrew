@@ -87,6 +87,13 @@ extern unsigned char title_thanks_tiles, title_thanks_tilesend, title_thanks_pal
 extern unsigned char hero_a, hero_b, hero_c, hero_pal, hero_palend;
 extern const unsigned char levelCollision[];
 
+// ---- music (snesmod soundbank, built by smconv from the Makefile's AUDIOFILES) ----
+// Module indices follow the AUDIOFILES order (title.it -> 0, song.it -> 1). smconv also writes these to
+// res/soundbank.h, but declaring them here avoids a build-order dependency on that generated header.
+#define MOD_TITLE 0                    // demo's Title.mid -> the title screen loop
+#define MOD_SONG  1                    // Baroque.mid -> the in-game loop
+extern char SOUNDBANK__;               // the linked soundbank; spcSetBank(&SOUNDBANK__)
+
 // ---- level.c : streaming page sources + collision + shared night-sky scene ----
 u8 *groundPage(u16 p);
 u8 *decoPage(u16 p);

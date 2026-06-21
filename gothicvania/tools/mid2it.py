@@ -182,7 +182,7 @@ def selftest():
     write_it(os.path.join(RES, "test.it"), "selftest",
              samples, instruments, [(rows, packed)], [0, 255], speed=6, tempo=125, num_channels=1)
 
-def convert_midi(path):
+def convert_midi(path, out_name="song.it", song_name="Gothic Baroque", tempo=145):
     import mido
     mid = mido.MidiFile(path)
     tpb = mid.ticks_per_beat                      # 960
@@ -246,13 +246,15 @@ def convert_midi(path):
         ("string", wave_saw(32),          c5_for_cycle(32), True),  # bright pad
     ]
     instruments = [("harpsi", 1), ("organ", 2), ("bass", 3), ("string", 4)]
-    write_it(os.path.join(RES, "song.it"), "Gothic Baroque",
-             samples, instruments, patterns, orders, speed=2, tempo=145, num_channels=NUM_CH)
+    write_it(os.path.join(RES, out_name), song_name,
+             samples, instruments, patterns, orders, speed=2, tempo=tempo, num_channels=NUM_CH)
     print(f"  {npat} patterns x {PAT_ROWS} rows ({total_rows} rows), {ROWS_PER_BEAT} rows/beat, 6 channels")
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "selftest":
         selftest()
+    elif len(sys.argv) > 1 and sys.argv[1] == "title":
+        convert_midi(os.path.join(ROOT, "assets", "Title.mid"), "title.it", "Gothic Title")
     else:
         convert_midi(os.path.join(ROOT, "assets", "Baroque.mid"))

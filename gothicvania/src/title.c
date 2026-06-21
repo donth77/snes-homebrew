@@ -38,7 +38,7 @@ GameState titleState(void)
     // Moon (OBJ) over the sky -- same as the play scene; clear all other sprites first (e.g. a hero left
     // over from a previous playthrough on the END -> TITLE loop).
     oamClear(0, 128);
-    setupMoon(1);                                // moon IN FRONT of the drifting mountains -> stable + clear
+    setupMoon(0);                                // moon BEHIND the mountains (like the demo + play scene)
 
     bgSetEnable(0); bgSetEnable(1); bgSetEnable(2);
     bgSetScroll(0, 0, 0); bgSetScroll(1, 0, 0); bgSetScroll(2, 0, 0);
@@ -47,7 +47,9 @@ GameState titleState(void)
     // title scrolls the mountains as ONE slow layer (the demo's bg-mountains drift), via bgSetScroll(2).
     armSkyGradient();
 
+    spcLoad(MOD_TITLE);                          // load the title song (during force blank)
     setScreenOn();
+    spcPlay(0);                                  // play it (loops)
 
     for (;;) {
         u16 pad = padsCurrent(0);
@@ -56,6 +58,7 @@ GameState titleState(void)
         if ((pad & KEY_START) && !(prevPad & KEY_START)) return ST_PLAY;
         prevPad = pad;
 
+        spcProcess();                            // stream the music each frame
         WaitForVBlank();
         bgSetScroll(2, mtn >> 8, 0);                 // scroll write in VBlank (shared scroll-latch safe)
         if (pressOn) bgSetEnable(1); else bgSetDisable(1);

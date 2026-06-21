@@ -27,6 +27,7 @@ GameState endState(void)
     REG_CGADSUB = 0x00;                              // colour math off
     setPaletteColor(0, SKY_BACKDROP);                // dark backdrop behind the text
 
+    spcStop();                                       // STOP the looping in-game music on the end screen
     setScreenOn();
 
     for (;;) {
@@ -35,6 +36,7 @@ GameState endState(void)
         // Ignore START briefly so the press that *reached* the end doesn't instantly skip the screen.
         if (t > 40 && (pad & KEY_START) && !(prevPad & KEY_START)) return ST_TITLE;
         prevPad = pad;
+        spcProcess();                                // keep the SPC serviced (stopped -> silent)
         WaitForVBlank();
     }
 }

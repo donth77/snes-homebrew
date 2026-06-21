@@ -15,6 +15,12 @@ int main(void)
 {
     GameState st = ST_TITLE;
 
+    // Boot the SNESMod sound engine and point it at our soundbank (title + in-game songs). Once, at
+    // startup (spcBoot uploads the SPC700 driver and takes a moment). Each state then loads/plays/stops
+    // its own track and calls spcProcess() per frame to stream it.
+    spcBoot();
+    spcSetBank((u8 *)&SOUNDBANK__);
+
 #if PPU_CLEAN_INIT
     // The SNES powers on with GARBAGE in CGRAM and in the colour-math / subscreen / window registers,
     // and nothing clears them implicitly. Without this, palettes get blended with random colour math

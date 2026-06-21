@@ -69,7 +69,9 @@ GameState playState(void)
 
     armSkyGradient();   // level.c: ch6 COLOR-MATH sky -- MUST be after setParallaxScrolling (bank-clobber)
 
+    spcLoad(MOD_SONG);                            // load the in-game Baroque track (during force blank)
     setScreenOn();
+    spcPlay(0);                                   // play it (loops)
 
     // Matched to the Phaser demo (game.js): move 150 px/s, gravity 300 px/s^2, jump 170 px/s
     // -> ~48px high, ~68-frame (1.13s) hang. Converted to 8.8 px/frame, scaled x1.2 / x1.44 at 50Hz.
@@ -217,6 +219,7 @@ GameState playState(void)
             oamSet(4, hx,                hy, 3, facing, 0, facing ? 0 : 8, 0);
         }
 
+        spcProcess();                                // stream the music each frame
         WaitForVBlank();
         // CPU scroll-register writes MUST land in VBlank, NOT active display. The parallax HDMA (ch3)
         // writes BG3's offset every visible scanline, and ALL BG-offset registers ($210D/$210F/$2113...)
