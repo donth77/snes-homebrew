@@ -20,18 +20,31 @@ groundpagesA:   .incbin "res/level/ground_pagesA.bin"   ; pages 0..14
 groundpagesB:   .incbin "res/level/ground_pagesB.bin"   ; pages 15..18
 .ends
 
-; Decoration layer (Back: trees + gravestones + crosses) -> BG1 (behind), palette 1
-.section ".rodata_decotiles" superfree
-decotiles:      .incbin "res/level/deco_tileset.pic"
-decotilesend:
+; Decoration layer (Back: trees + gravestones + crosses) -> BG1 (behind), palette 1. STREAMED: only the
+; on-screen pages' tiles are resident (a 2-slot window), freeing ~11KB of VRAM for demo-size enemy
+; sprites. build_stream.py emits per-page tiles (bank-packed into deco_pt0..2 so no page-DMA crosses a
+; bank) + per-page window-local maps; the renderer DMAs a page's tiles into its parity slot.
+.section ".rodata_decopal" superfree
 decopal:        .incbin "res/level/deco_tileset.pal"
 decopalend:
 .ends
-.section ".rodata_decopagesA" superfree
-decopagesA:     .incbin "res/level/deco_pagesA.bin"     ; pages 0..14
+.section ".rodata_decopt0" superfree
+deco_pt0:       .incbin "res/level/deco_pt0.bin"        ; per-page 4bpp tiles, bank-packed section 0
 .ends
-.section ".rodata_decopagesB" superfree
-decopagesB:     .incbin "res/level/deco_pagesB.bin"     ; pages 15..18
+.section ".rodata_decopt1" superfree
+deco_pt1:       .incbin "res/level/deco_pt1.bin"        ; section 1
+.ends
+.section ".rodata_decopt2" superfree
+deco_pt2:       .incbin "res/level/deco_pt2.bin"        ; section 2
+.ends
+.section ".rodata_decopageinfo" superfree
+deco_pageinfo:  .incbin "res/level/deco_pageinfo.bin"   ; per-page (u16 section, u16 byteOffset, u16 count)
+.ends
+.section ".rodata_decosmapsA" superfree
+deco_smapsA:    .incbin "res/level/deco_smapsA.bin"     ; window-local maps, pages 0..14
+.ends
+.section ".rodata_decosmapsB" superfree
+deco_smapsB:    .incbin "res/level/deco_smapsB.bin"     ; pages 15..18
 .ends
 
 ; Parallax far layer: mountains silhouette -> BG2 (2bpp / 4-colour). Static repeating 512px

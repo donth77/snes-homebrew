@@ -15,10 +15,24 @@ u8 *groundPage(u16 p)
     if (p < PAGE_SPLIT) return (u8 *)(&groundpagesA) + (u32)p * 2048;
     return (u8 *)(&groundpagesB) + (u32)(p - PAGE_SPLIT) * 2048;
 }
-u8 *decoPage(u16 p)
+// --- STREAMED deco: window-local tilemap + per-page tiles (see build_stream.py) ---
+// Window-local deco tilemap for page p (pages 0..14 in smapsA, 15..18 in smapsB). DMA to BG1_MAP + slot.
+u8 *decoSmap(u16 p)
 {
-    if (p < PAGE_SPLIT) return (u8 *)(&decopagesA) + (u32)p * 2048;
-    return (u8 *)(&decopagesB) + (u32)(p - PAGE_SPLIT) * 2048;
+    if (p < PAGE_SPLIT) return (u8 *)(&deco_smapsA) + (u32)p * 2048;
+    return (u8 *)(&deco_smapsB) + (u32)(p - PAGE_SPLIT) * 2048;
+}
+// ROM addr of page p's deco tiles. deco_pageinfo[p] = (u16 section, u16 byteOffset, u16 count); the tiles
+// are bank-packed into deco_pt0..2 so a page's tile DMA never crosses a bank boundary.
+u8 *decoPageTiles(u16 p)
+{
+    u16 *info = (u16 *)(&deco_pageinfo) + (u32)p * 3;
+    u8 *base = (info[0] == 0) ? &deco_pt0 : (info[0] == 1) ? &deco_pt1 : &deco_pt2;
+    return base + info[1];
+}
+u16 decoPageTileBytes(u16 p)
+{
+    return ((u16 *)(&deco_pageinfo))[(u32)p * 3 + 2] * 32;
 }
 
 // 0 = empty, 1 = full solid (walls + floor), 2 = one-way platform (lands from the top only,

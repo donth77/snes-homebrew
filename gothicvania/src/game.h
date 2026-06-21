@@ -27,14 +27,18 @@
 // stay <=768 tiles (it's 710) so BG2 tiles+map fit one 2-block pair. Total ends exactly at 0x8000.
 //  0x0000 hero | 0x0800 moon | 0x1000 BG0 tiles | 0x1800 BG0 map | 0x2000 BG2 tiles(710)
 //  | 0x3800 BG2 map | 0x4000 BG1 tiles(deco 880) | 0x7800 BG1 map.
-#define HERO_VRAM  0x0000
-#define MOON_VRAM  0x0800                  // moon OBJ band (tiles 128..191; ONE 64x64 OBJ)
-#define ENEMY_VRAM 0x0C00                  // enemy OBJ band (tiles 192..255 = 2KB, freed by the 64x64 moon)
-#define BG0_TILES  0x1000                  // ground tiles (112)  -> 0x1000..0x1700
-#define BG0_MAP    0x1800                  // ground (Main) tilemap, streamed
+// OBJ region = tiles 0..511 (0x0000..0x2000; OBSEL gap 0 makes 256..511 contiguous at 0x1000). The
+// ground used to sit in 0x1000..0x2000 -- it MOVED to 0x6000 (into space freed by deco tile-streaming)
+// so the enemies get tiles 192..511 (0x0C00..0x2000 = 10KB ~ five 64x64 sprites) for demo-size enemies.
+#define HERO_VRAM  0x0000                  // hero OBJ band  (tiles 0..127,   4KB)
+#define MOON_VRAM  0x0800                  // moon OBJ band  (tiles 128..191, ONE 64x64 OBJ)
+#define ENEMY_VRAM 0x0C00                  // enemy OBJ band (tiles 192..511, 0x0C00..0x2000 = 10KB)
+#define BG0_TILES  0x6000                  // ground tiles (112) -> 0x6000..0x66C0 (moved out of the OBJ region)
+#define BG0_MAP    0x6800                  // ground (Main) tilemap, streamed
 #define BG2_TILES  0x2000                  // parallax tiles (2bpp, 710) -> 0x2000..0x3630
 #define BG2_MAP    0x3800                  // parallax tilemap
-#define BG1_TILES  0x4000                  // deco tiles (880)  -> 0x4000..0x7700
+#define BG1_TILES  0x4000                  // deco tile WINDOW (streamed): even-page slot 0x4000, odd-page
+#define DECO_SLOT1 0x1000                  // slot at 0x5000; window = 0x4000..0x6000 (was 0x4000..0x7700 resident)
 #define BG1_MAP    0x7800                  // deco (Back) tilemap, streamed
 
 // Title/end VRAM: no level is shown, so BG0/BG1 hold the overlays (logo / PRESS START / THANKS);
@@ -77,8 +81,10 @@ extern u16 jumpDir;
 // ---- ROM data symbols (data.asm incbins) ----
 extern unsigned char groundtiles, groundtilesend, groundpal, groundpalend;
 extern unsigned char groundpagesA, groundpagesB;
-extern unsigned char decotiles, decotilesend, decopal, decopalend;
-extern unsigned char decopagesA, decopagesB;
+extern unsigned char decopal, decopalend;                  // deco palette (block 1)
+extern unsigned char deco_pt0, deco_pt1, deco_pt2;         // bank-packed per-page deco tiles (streamed)
+extern unsigned char deco_pageinfo;                        // per-page (u16 section, u16 byteOffset, u16 count)
+extern unsigned char deco_smapsA, deco_smapsB;             // window-local deco tilemaps (pages 0..14 / 15..18)
 extern unsigned char parallaxtiles, parallaxtilesend, parallaxpal, parallaxpalend, parallaxmap;
 extern unsigned char sky_coldata;        // per-scanline COLOR-MATH ($2132) gradient table (NOT CGRAM)
 extern unsigned char moontiles, moontilesend, moonpal, moonpalend;
@@ -105,7 +111,9 @@ extern char SOUNDBANK__;               // the linked soundbank; spcSetBank(&SOUN
 
 // ---- level.c : streaming page sources + collision + shared night-sky scene ----
 u8 *groundPage(u16 p);
-u8 *decoPage(u16 p);
+u8 *decoSmap(u16 p);           // window-local deco tilemap for page p (DMA to BG1_MAP + slot)
+u8 *decoPageTiles(u16 p);      // ROM addr of page p's deco tiles (DMA to BG1_TILES + parity slot)
+u16 decoPageTileBytes(u16 p);  // byte size of page p's deco tiles (count * 32)
 u8  cellv(s16 col, s16 row);
 void setupMoon(u8 prio);       // moon+glow OBJ (prio 0 = behind mountains for play; 1 = in front for title)
 void armSkyGradient(void);     // COLOR-MATH sky gradient on HDMA ch6 (shared by play + title)

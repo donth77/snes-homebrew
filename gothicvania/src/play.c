@@ -22,6 +22,10 @@ GameState playState(void)
     u8  attackTimer = 0;
     u16 prevPad = 0;
     s16 WALK, GRAV, JUMP, VYMAX;
+    // --- deco tile-streaming state (persists across frames; fresh each playState entry) ---
+    u8  streaming = 0, streamMapPending = 0, streamPage = 0;
+    u16 streamOff = 0, streamLen = 0, streamTileDst = 0, streamMapSlot = 0;
+    u8 *streamSrc = (u8 *)0;
 
     setScreenOff();                              // force blank: free DMA while we (re)load the level VRAM
     camX = 0; curA = 0; curB = 1;                // reset streaming/camera (so a replay after END starts clean)
@@ -33,8 +37,8 @@ GameState playState(void)
     bgInitTileSet(0, &groundtiles, &groundpal, 2,                 // ground -> palette 2 (CGRAM 32..47)
                   (&groundtilesend - &groundtiles), (&groundpalend - &groundpal),
                   BG_16COLORS, BG0_TILES);
-    bgInitTileSet(1, &decotiles, &decopal, 1,                     // deco   -> palette 1 (CGRAM 16..31)
-                  (&decotilesend - &decotiles), (&decopalend - &decopal),
+    bgInitTileSet(1, decoPageTiles(0), &decopal, 1,             // deco STREAMED: page 0 tiles -> slot 0,
+                  decoPageTileBytes(0), (&decopalend - &decopal),  // palette block 1, char base = window
                   BG_16COLORS, BG1_TILES);
     bgInitTileSet(2, &parallaxtiles, &parallaxpal, 0,            // mountains -> palette 0 (CGRAM 0..3)
                   (&parallaxtilesend - &parallaxtiles), (&parallaxpalend - &parallaxpal),
@@ -43,8 +47,9 @@ GameState playState(void)
     WaitForVBlank();                                              // screen still off -> DMA unlimited
     dmaCopyVram(groundPage(0), BG0_MAP,         2048);
     dmaCopyVram(groundPage(1), BG0_MAP + 0x400, 2048);
-    dmaCopyVram(decoPage(0),   BG1_MAP,         2048);
-    dmaCopyVram(decoPage(1),   BG1_MAP + 0x400, 2048);
+    dmaCopyVram(decoPageTiles(1), BG1_TILES + DECO_SLOT1, decoPageTileBytes(1));  // page 1 tiles -> slot 1
+    dmaCopyVram(decoSmap(0),   BG1_MAP,         2048);           // window-local deco maps for pages 0, 1
+    dmaCopyVram(decoSmap(1),   BG1_MAP + 0x400, 2048);
     dmaCopyVram(&parallaxmap,           BG2_MAP,         2048);   // static far layer: two 32x32 screens
     dmaCopyVram((&parallaxmap) + 2048,  BG2_MAP + 0x400, 2048);
 
@@ -69,30 +74,39 @@ GameState playState(void)
 
     armSkyGradient();   // level.c: ch6 COLOR-MATH sky -- MUST be after setParallaxScrolling (bank-clobber)
 
-    spcLoad(MOD_BAROQUE);                         // load the in-game Baroque track (during force blank)
-    spcLoadEffect(SFX_JUMP);                      // (re)load the player SFX into the sound region (loading
-    spcLoadEffect(SFX_ATTACK);                    // a module resets it, so this must follow spcLoad)
-    spcLoadEffect(SFX_HURT);
-    setScreenOn();
-    spcPlay(0);                                   // play the music (loops); SFX fire via spcEffect()
-
+    // Physics + start position set BEFORE the screen comes on, so we can place the hero in the OAM now.
     // Matched to the Phaser demo (game.js): move 150 px/s, gravity 300 px/s^2, jump 170 px/s
     // -> ~48px high, ~68-frame (1.13s) hang. Converted to 8.8 px/frame, scaled x1.2 / x1.44 at 50Hz.
     WALK  = snes_50hz ? 768  : 640;
     GRAV  = snes_50hz ? 30   : 21;
     JUMP  = snes_50hz ? -870 : -725;
     VYMAX = snes_50hz ? 1229 : 1024;
-
     feetX = (s32)80 << 8;
     feetY = (s32)192 << 8;                            // start standing on the ground
     vx = vy = 0;
+    // Place the hero at its start NOW so it doesn't flash at the OAM's init spot (top-left) for a frame
+    // when the screen turns on -- spcLoad's internal VBlank would otherwise upload the un-positioned hero.
+    {
+        s16 hx = (feetX >> 8) - camX;
+        s16 hy = (feetY >> 8) - SPR_OY;
+        oamSet(0, hx - HERO_LEFT_DX, hy, 3, facing, 0, facing ? 8 : 0, 0);
+        oamSet(4, hx,                hy, 3, facing, 0, facing ? 0 : 8, 0);
+    }
+
+    spcLoad(MOD_BAROQUE);                         // load the in-game Baroque track (during force blank)
+    spcLoadEffect(SFX_JUMP);                      // (re)load the player SFX into the sound region (loading
+    spcLoadEffect(SFX_ATTACK);                    // a module resets it, so this must follow spcLoad)
+    spcLoadEffect(SFX_HURT);
+    WaitForVBlank();                              // upload the OAM (hero placed + moon) BEFORE the screen on
+    setScreenOn();
+    spcPlay(0);                                   // play the music (loops); SFX fire via spcEffect()
 
     while (1)
     {
         u16 pad = padsCurrent(0);
         s16 ix, iy, c, fcol, frow, prevFeetPx;
-        u16 L, wantE, wantO, loadPage = 0, slot = 0, mv;
-        u8  need = 0, attacking, crouching, animF, animN, animSpd, sub, cv, loop = 1;
+        u16 L, wantE, wantO, mv;
+        u8  attacking, crouching, animF, animN, animSpd, sub, cv, loop = 1;
         s8  fixedSub = -1;
 
         // --- input ---
@@ -173,12 +187,24 @@ GameState playState(void)
         // Level-end trigger: the hero reaches the right edge of the 4800px level -> "Thanks for Playing".
         if ((feetX >> 8) >= LVL_PXW - 40) return ST_END;
 
-        // --- stream pages (both backgrounds in lockstep: same page index, same slot offset) ---
+        // --- stream the next page (ground map + window-local deco map + deco TILES) into its OFF-screen
+        //     slot, well before the camera reveals it (~85 frames of runway at walk speed). The deco
+        //     tiles are spread over a few VBlanks so per-frame DMA never overruns -> no flicker. The slot
+        //     is off-screen until fully loaded. Only start a new load once the previous one finished. ---
         L = camX >> 8;
         wantE = (L & 1) ? (L + 1) : L;
         wantO = (L & 1) ? L : (L + 1);
-        if (wantE != curA && wantE < N_PAGES)      { need = 1; loadPage = wantE; slot = 0;     curA = wantE; }
-        else if (wantO != curB && wantO < N_PAGES) { need = 1; loadPage = wantO; slot = 0x400; curB = wantO; }
+        if (!streaming) {
+            u16 wp = 0xFFFF, ms = 0;
+            if (wantE != curA && wantE < N_PAGES)      { wp = wantE; ms = 0;     curA = wantE; }
+            else if (wantO != curB && wantO < N_PAGES) { wp = wantO; ms = 0x400; curB = wantO; }
+            if (wp != 0xFFFF) {
+                streamPage = (u8)wp; streamMapSlot = ms;
+                streamSrc = decoPageTiles(wp); streamLen = decoPageTileBytes(wp); streamOff = 0;
+                streamTileDst = BG1_TILES + ((wp & 1) ? DECO_SLOT1 : 0);
+                streaming = 1; streamMapPending = 1;
+            }
+        }
 
         // --- pick animation (attack > airborne > crouch > run > idle) ---
         // loop=1 cycles forever (idle/run/fall); loop=0 plays once then holds the last frame.
@@ -215,7 +241,7 @@ GameState playState(void)
         // frames). The upload is then split into TWO 2KB halves, one per VBlank (see below) -- a single
         // 4KB hero DMA, landing on a frame where the hero is ALSO moving (jump), overran VBlank and made
         // the BG1 decoration tiles drop out for a frame ("object flicker"). 2KB/frame can't overrun.
-        if (heroGfx != lastGfx && !need) { heroDmaQueue = 2; heroQueuedGfx = heroGfx; lastGfx = heroGfx; }
+        if (heroGfx != lastGfx && !streaming) { heroDmaQueue = 2; heroQueuedGfx = heroGfx; lastGfx = heroGfx; }
 
         // Two 64x64 OBJs make the full hero. Facing right: OBJ0 = left half (gfxoffset 0) at
         // head-64, OBJ4 = right half (gfxoffset 8) at the head. Facing left the halves swap
@@ -245,13 +271,22 @@ GameState playState(void)
             HDMATable16[4] = grv & 0xFF; HDMATable16[5] = grv >> 8;
         }
         REG_HDMAEN = 0x48;                           // ch3 (scroll banding) + ch6 (sky COLOR-MATH gradient)
-        if (need) {                                      // 2 page DMAs (4KB) -- hero is deferred this frame
-            dmaCopyVram(groundPage(loadPage), BG0_MAP + slot, 2048);
-            dmaCopyVram(decoPage(loadPage),   BG1_MAP + slot, 2048);
+        // Streaming the next page into its OFF-screen slot: frame 0 loads the ground map + window-local
+        // deco map (4KB); the following frames DMA the deco TILES ~4KB/frame into the tile slot until done.
+        // All within the ~85-frame runway before the slot is revealed, so nothing shows half-loaded.
+        if (streamMapPending) {
+            dmaCopyVram(groundPage(streamPage), BG0_MAP + streamMapSlot, 2048);
+            dmaCopyVram(decoSmap(streamPage),   BG1_MAP + streamMapSlot, 2048);
+            streamMapPending = 0;
+        } else if (streaming) {
+            u16 chunk = streamLen - streamOff; if (chunk > 4096) chunk = 4096;
+            dmaCopyVram(streamSrc + streamOff, streamTileDst + (streamOff >> 1), chunk);
+            streamOff += chunk;
+            if (streamOff >= streamLen) streaming = 0;
         }
         // Upload ONE 2KB half of the queued hero frame this VBlank (top half, then bottom), deferred on
         // page-stream frames (those already move 4KB). Halving the per-frame VBlank DMA stops the overrun.
-        if (heroDmaQueue && !need) {
+        if (heroDmaQueue && !streaming) {
             u8 hh = (heroDmaQueue == 2) ? 0 : 1;
             dmaCopyVram(heroFrameSrc(heroQueuedGfx) + (u32)hh * (HERO_BANDSZ / 2),
                         HERO_VRAM + hh * (HERO_BANDSZ / 4), HERO_BANDSZ / 2);

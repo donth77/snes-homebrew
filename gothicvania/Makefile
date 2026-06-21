@@ -46,6 +46,12 @@ res/level/ground_tileset.pic: res/level/.stamp
 	$(GFXCONV) -s 8 -o 16 -u 16 -p -R -t png -i res/level/deco_tileset.png
 	touch data.asm   # data.asm incbins these; make can't see incbin deps, so force ROM rebuild
 
+# Deco tile-STREAMING: reshape the resident deco tileset+pages into per-page streamed tiles (bank-packed)
+# + window-local maps, so only on-screen deco tiles are VRAM-resident (frees ~11KB for enemy sprites).
+res/level/deco_pt0.bin: tools/build_stream.py res/level/ground_tileset.pic res/level/.stamp
+	python3 tools/build_stream.py
+	touch data.asm
+
 # Parallax (mountains + graveyard) -> ONE 2bpp BG2 with TWO sub-palettes; adapt_parallax.py emits
 # the .pic/.pal/.map directly (gfx4snes can't do two sub-palettes in one 2bpp tileset).
 res/level/parallax_tiles.pic: tools/adapt_parallax.py res/level/sky_coldata.bin
@@ -89,4 +95,4 @@ res/hero_a.bin: res/hero.pic
 	dd if=res/hero.pic of=res/hero_c.bin bs=4096 skip=14 2>/dev/null
 	touch data.asm
 
-bitmaps: res/hero_a.bin res/level/.stamp res/level/ground_tileset.pic res/level/parallax_tiles.pic res/level/sky_coldata.bin res/moon.pic res/title_logo.pic
+bitmaps: res/hero_a.bin res/level/.stamp res/level/ground_tileset.pic res/level/deco_pt0.bin res/level/parallax_tiles.pic res/level/sky_coldata.bin res/moon.pic res/title_logo.pic
