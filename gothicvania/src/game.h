@@ -28,7 +28,8 @@
 //  0x0000 hero | 0x0800 moon | 0x1000 BG0 tiles | 0x1800 BG0 map | 0x2000 BG2 tiles(710)
 //  | 0x3800 BG2 map | 0x4000 BG1 tiles(deco 880) | 0x7800 BG1 map.
 #define HERO_VRAM  0x0000
-#define MOON_VRAM  0x0800                  // moon OBJ band (tiles 128+)
+#define MOON_VRAM  0x0800                  // moon OBJ band (tiles 128..191; ONE 64x64 OBJ)
+#define ENEMY_VRAM 0x0C00                  // enemy OBJ band (tiles 192..255 = 2KB, freed by the 64x64 moon)
 #define BG0_TILES  0x1000                  // ground tiles (112)  -> 0x1000..0x1700
 #define BG0_MAP    0x1800                  // ground (Main) tilemap, streamed
 #define BG2_TILES  0x2000                  // parallax tiles (2bpp, 710) -> 0x2000..0x3630

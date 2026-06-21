@@ -17,12 +17,13 @@ sys.path.insert(0, os.path.join(ROOT, "tools"))
 from adapt_assets import to_indexed
 a = np.array(Image.open(os.path.join(ENV, "bg-moon.png")).convert("RGBA"))
 CX, CY = 194, 65
-WD, HT = 128, 64
+WD, HT = 64, 64                  # 64x64 (was 128x64): frees a 2KB OBJ VRAM band (0x0C00) for enemy sprites
 box = a[CY - HT // 2:CY - HT // 2 + HT, CX - WD // 2:CX - WD // 2 + WD, :3].astype(int)
 yy, xx = np.mgrid[0:HT, 0:WD]
 cx, cy = WD / 2 - 0.5, HT / 2 - 0.5
 r = np.hypot(xx - cx, yy - cy)
-disk = r <= 28                                                         # the moon disk
+DISK_R = float(os.environ.get("MOON_DISK_R", "25"))                   # smaller disk in the 64px box leaves
+disk = r <= DISK_R                                                    # room for the glow halo (was r<=28)
 # fill very-dark disk pixels (source mountain overlap) so the disk has no holes
 lum = 0.3 * box[:, :, 0] + 0.6 * box[:, :, 1] + 0.1 * box[:, :, 2]
 dk = disk & (lum < 18); br = disk & (lum >= 18)
