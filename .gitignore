@@ -57,6 +57,10 @@ soundbank.bnk
 .DS_Store
 *.swp
 
+# Mesen video / screen captures used for debugging (large, ephemeral)
+*.avi
+*.mp4
+
 # Local clangd config — contains machine-specific absolute include paths.
 # Lets the editor resolve <snes.h>; not used by the actual build (816-tcc).
 compile_flags.txt

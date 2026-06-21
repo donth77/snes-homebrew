@@ -25,7 +25,10 @@ ENV  = os.path.join(ROOT, "assets", "gothicvania-cemetery-files", "Assets",
 ENV2 = os.path.join(ROOT, "assets", "gothicvania-cemetery-files", "Assets", "Environment")
 OUT  = os.path.join(ROOT, "res", "level")
 BG_W, BG_H = 64, 32                                  # BG2 tilemap = 512x256
-GBAND = 13                                           # first cell-row of the graveyard band (px 104)
+GBAND = 13                                           # first cell-row of the graveyard band (px 104). The
+                                                     # mountains end here and the gravestones (closer layer)
+                                                     # rise in front, so the mountain bases recede behind
+                                                     # them rather than being "cut" -- like the demo.
 GRV = [(0, 0, 34), (11, 31, 60), (28, 48, 70)]       # graveyard 3-colour sub-palette (teal)
 
 def nearest_idx(img, pal):
@@ -88,13 +91,18 @@ _mshade = _mdist.argmin(0) + 1                                                  
 # of mountain-edge tiles (which render through sub-pal 2) blend into the glow -> no rectangular blocks.
 MTN[-1] = SKY[2]
 sky_idx[_mop] = _mshade[_mop]                                                           # mountains -> their shades
-# The cut-off below the mountains is hidden by setting the BACKDROP (CGRAM 0) to the mountain colour
-# (SKY[0]) -- see the palette line below -- so the dark mass reads as continuing down to the horizon.
+# THE FIX for "mountains cut off": below the sky band we fill the whole graveyard background with a solid
+# block of the mountains' OWN darkest colour, so the mountain mass simply continues straight down past
+# the band cut instead of ending on an edge (the gravestones then rise in FRONT of that block). Make the
+# graveyard sub-palette's darkest entry == the mountain's darkest colour so the block matches exactly.
+GRV[0] = tuple(int(x) for x in MTN[0])
 
 # --- GRAVEYARD band: resized to 512 (it scrolls far enough to wrap, so it must tile seamlessly).
 grv = np.array(Image.open(os.path.join(ENV, "bg-graveyard.png")).convert("RGBA")
                .resize((512, 224), Image.NEAREST))
 grv_idx = nearest_idx(grv, GRV)
+grv_idx[grv_idx == 0] = 1                             # fill the transparent background with GRV[0] (= the
+                                                     # mountain colour): a solid block under the mountains
 
 def coarsen(a, n):                                   # snap each nxn block to its top-left pixel
     h, w = a.shape
@@ -106,10 +114,20 @@ _U  = int(os.environ.get("BG2_UPPER", "1"))           # upper clouds (rows 0-47)
 _GV = int(os.environ.get("BG2_GVVIS", "2"))           # graveyard strip (mostly occluded by the level -> coarse)
 _GH = int(os.environ.get("BG2_GVHID", "2"))           # lower graveyard (hidden behind the level -> coarse)
 idximg = np.zeros((256, 512), np.uint8)
-idximg[0:48]    = coarsen(sky_idx[0:48], _U)          # upper clouds
-idximg[48:104]  = sky_idx[48:104]                     # mountains + lower clouds -> always SHARP
-idximg[104:160] = coarsen(grv_idx[104:160], _GV)      # visible graveyard strip
-idximg[160:224] = coarsen(grv_idx[160:224], _GH)      # hidden behind the level -> coarse (frees budget)
+idximg[0:48]    = coarsen(sky_idx[0:48], _U)          # upper sky (cleared to transparent below)
+idximg[48:104]  = sky_idx[48:104]                     # mountains + lower sky -> always SHARP
+idximg[104:160] = coarsen(grv_idx[104:160], _GV)      # graveyard: full gravestones (they start at row ~101)
+idximg[160:224] = coarsen(grv_idx[160:224], _GH)      # lower graveyard (mostly behind the level) -> coarse
+
+# COLOR-MATH SKY: the sky/glow is now a smooth per-scanline gradient painted on the BACKDROP by HDMA
+# on $2132 (gen_sky_gradient.py + main.c) -- NEVER CGRAM, so it can't corrupt the palette. So the BG2
+# sky itself is fully TRANSPARENT (index 0) and that gradient backdrop shows through; only the mountain
+# silhouette stays opaque (in front). Clearing the baked glow is what removes ALL sky banding.
+idximg[0:GBAND * 8][~_mop[0:GBAND * 8]] = 0           # sky rows: keep mountains, drop everything else
+
+# The mountains are NOT cut -- they keep their full solid base and flow straight down into the graveyard
+# band below (which is filled dark, see grv_idx), so there's no cut-off edge and no isolated rectangle:
+# the dark mountain mass continues into the dark graveyard, with the gravestones rising in front of it.
 
 # Dedup 8x8 index patterns up to H/V flip; a shared pattern stores one tile, the tilemap picks
 # sub-palette + priority.

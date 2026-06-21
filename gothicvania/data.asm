@@ -44,9 +44,11 @@ parallaxpalend:
 parallaxmap:    .incbin "res/level/parallax_map.bin"     ; two 32x32 screens (4096B)
 .ends
 
-; Sky gradient: per-scanline backdrop-colour HDMA table (setModeHdmaColor, channel 6).
+; Sky gradient: per-scanline COLOR-MATH HDMA table (channel 6 -> $2132 COLDATA, NOT CGRAM, so it can't
+; corrupt the palette). gen_sky_gradient.py builds it; main.c arms it. Mode-2: red byte then blue byte
+; per scanline = a smooth dark->moonlit magenta ramp added to the backdrop.
 .section ".rodata_sky" superfree
-sky_gradient:   .incbin "res/level/sky_gradient.bin"
+sky_coldata:    .incbin "res/level/sky_coldata.bin"
 .ends
 
 ; Moon: a single 64x64 OBJ sprite (own palette), fixed in the sky, drawn behind the mountains.

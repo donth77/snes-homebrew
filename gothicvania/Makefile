@@ -29,17 +29,20 @@ res/level/ground_tileset.pic: res/level/.stamp
 
 # Parallax (mountains + graveyard) -> ONE 2bpp BG2 with TWO sub-palettes; adapt_parallax.py emits
 # the .pic/.pal/.map directly (gfx4snes can't do two sub-palettes in one 2bpp tileset).
-res/level/parallax_tiles.pic: tools/adapt_parallax.py
+res/level/parallax_tiles.pic: tools/adapt_parallax.py res/level/sky_coldata.bin
 	python3 tools/adapt_parallax.py
 	touch data.asm
 
-# Sky gradient: per-scanline backdrop colour HDMA table sampled from the demo's bg-moon sky.
-res/level/sky_gradient.bin: tools/adapt_sky.py
-	python3 tools/adapt_sky.py
-	touch data.asm
+# Sky gradient: per-scanline COLOR-MATH HDMA table ($2132 COLDATA, never CGRAM -> can't corrupt the
+# palette). gen_sky_gradient.py ALSO writes src/sky_params.h (backdrop colour, included by main.c) and
+# res/sky_dark.txt (the moon-band colour, read by adapt_moon + adapt_parallax), so it must run first.
+res/level/sky_coldata.bin: tools/gen_sky_gradient.py
+	python3 tools/gen_sky_gradient.py
+	touch data.asm src/main.c
 
-# Moon: tools/adapt_moon.py extracts the disk -> 64x64 sprite (gfx4snes -s 64, like the hero).
-res/moon.png: tools/adapt_moon.py
+# Moon: tools/adapt_moon.py extracts the disk + glow -> 128x64 sprite. Depends on the gradient so the
+# glow fades to the same moon-band colour (res/sky_dark.txt) -> the sprite melts into the sky.
+res/moon.png: tools/adapt_moon.py res/level/sky_coldata.bin
 	python3 tools/adapt_moon.py
 
 res/moon.pic: res/moon.png
@@ -61,4 +64,4 @@ res/hero_a.bin: res/hero.pic
 	dd if=res/hero.pic of=res/hero_c.bin bs=4096 skip=14 2>/dev/null
 	touch data.asm
 
-bitmaps: res/hero_a.bin res/level/.stamp res/level/ground_tileset.pic res/level/parallax_tiles.pic res/level/sky_gradient.bin res/moon.pic
+bitmaps: res/hero_a.bin res/level/.stamp res/level/ground_tileset.pic res/level/parallax_tiles.pic res/level/sky_coldata.bin res/moon.pic
