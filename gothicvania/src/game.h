@@ -87,11 +87,19 @@ extern unsigned char title_thanks_tiles, title_thanks_tilesend, title_thanks_pal
 extern unsigned char hero_a, hero_b, hero_c, hero_pal, hero_palend;
 extern const unsigned char levelCollision[];
 
-// ---- music (snesmod soundbank, built by smconv from the Makefile's AUDIOFILES) ----
-// Module indices follow the AUDIOFILES order (title.it -> 0, baroque.it -> 1). smconv also writes these
-// to res/soundbank.h, but declaring them here avoids a build-order dependency on that generated header.
-#define MOD_TITLE   0                  // demo's Title.mid -> the title screen loop
-#define MOD_BAROQUE 1                  // Baroque.mid -> the in-game loop
+// ---- audio (snesmod soundbank, built by smconv from the Makefile's AUDIOFILES) ----
+// Module indices follow the AUDIOFILES order (effectssfx -> 0, title -> 1, baroque -> 2). smconv also
+// writes these to res/soundbank.h, but declaring them here avoids a build-order dep on that header.
+#define MOD_EFFECTSSFX 0               // the SFX bank (spcLoad it, then spcLoadEffect each effect)
+#define MOD_TITLE      1               // demo's Title.mid -> the title screen loop
+#define MOD_BAROQUE    2               // Baroque.mid -> the in-game loop
+// Sound-effect indices = the sample order in tools/adapt_sfx.py. Load with spcLoadEffect(SFX_x), play
+// with spcEffect(4, SFX_x, vol) (pitch 4 = 16 kHz = original speed).
+#define SFX_JUMP   0
+#define SFX_ATTACK 1
+#define SFX_HURT   2
+#define SFX_KILL   3                   // enemies (Phase 3)
+#define SFX_RISE   4                   // enemies (Phase 3)
 extern char SOUNDBANK__;               // the linked soundbank; spcSetBank(&SOUNDBANK__)
 
 // ---- level.c : streaming page sources + collision + shared night-sky scene ----

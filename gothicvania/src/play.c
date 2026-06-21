@@ -70,8 +70,11 @@ GameState playState(void)
     armSkyGradient();   // level.c: ch6 COLOR-MATH sky -- MUST be after setParallaxScrolling (bank-clobber)
 
     spcLoad(MOD_BAROQUE);                         // load the in-game Baroque track (during force blank)
+    spcLoadEffect(SFX_JUMP);                      // (re)load the player SFX into the sound region (loading
+    spcLoadEffect(SFX_ATTACK);                    // a module resets it, so this must follow spcLoad)
+    spcLoadEffect(SFX_HURT);
     setScreenOn();
-    spcPlay(0);                                   // play it (loops)
+    spcPlay(0);                                   // play the music (loops); SFX fire via spcEffect()
 
     // Matched to the Phaser demo (game.js): move 150 px/s, gravity 300 px/s^2, jump 170 px/s
     // -> ~48px high, ~68-frame (1.13s) hang. Converted to 8.8 px/frame, scaled x1.2 / x1.44 at 50Hz.
@@ -111,8 +114,10 @@ GameState playState(void)
         // Attack triggers on a fresh press while grounded. Once attacking, the d-pad is
         // ignored -- movement and facing are locked until the swing finishes (so pressing
         // attack while running stops you, and holding a direction mid-swing does nothing).
-        if ((pad & ATTACK_KEYS) && !(prevPad & ATTACK_KEYS) && !attackTimer && onGround)
+        if ((pad & ATTACK_KEYS) && !(prevPad & ATTACK_KEYS) && !attackTimer && onGround) {
             attackTimer = A_ATTACK_N * 5;
+            spcEffect(4, SFX_ATTACK, 15 * 16 + 8);   // pitch 4 = 16kHz, vol 15, pan centre
+        }
         if (attackTimer) attackTimer--;
         attacking = (attackTimer != 0);
 
@@ -121,7 +126,10 @@ GameState playState(void)
             if (mv & KEY_LEFT)  { vx = -WALK; facing = 1; }
             if (mv & KEY_RIGHT) { vx =  WALK; facing = 0; }
         }
-        if ((pad & JUMP_KEYS) && !(prevPad & JUMP_KEYS) && onGround && !attacking) { vy = JUMP; onGround = 0; }
+        if ((pad & JUMP_KEYS) && !(prevPad & JUMP_KEYS) && onGround && !attacking) {
+            vy = JUMP; onGround = 0;
+            spcEffect(4, SFX_JUMP, 15 * 16 + 8);     // pitch 4 = 16kHz, vol 15, pan centre
+        }
         prevPad = pad;   // record AFTER every edge check, or the edges never fire
 
         // gravity

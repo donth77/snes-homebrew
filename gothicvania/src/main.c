@@ -20,6 +20,8 @@ int main(void)
     // its own track and calls spcProcess() per frame to stream it.
     spcBoot();
     spcSetBank((u8 *)&SOUNDBANK__);
+    // (soundbank effects use spcLoadEffect/spcEffect -- NOT spcAllocateSoundRegion, which is for raw-BRR
+    //  effects; the PVSnesLib effects examples don't call it, and calling it stopped our effects firing.)
 
 #if PPU_CLEAN_INIT
     // The SNES powers on with GARBAGE in CGRAM and in the colour-math / subscreen / window registers,

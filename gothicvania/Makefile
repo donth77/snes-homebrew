@@ -5,12 +5,14 @@ endif
 # Audio: title song (Title.mid) + in-game Baroque (Baroque.mid) -> .it (tools/mid2it.py) -> ONE soundbank
 # via smconv. AUDIOFILES order sets the MOD_* indices: title.it -> MOD_TITLE(0), song.it -> MOD_SONG(1).
 # (Must be set BEFORE including snes_rules, which generates + links $(SOUNDBANK).asm.)
-AUDIOFILES := res/title.it res/baroque.it
+# effectssfx.it MUST be first (the -f flag marks the first module as the loadable SFX bank):
+#   effectssfx.it -> MOD_EFFECTSSFX(0), title.it -> MOD_TITLE(1), baroque.it -> MOD_BAROQUE(2).
+AUDIOFILES := res/effectssfx.it res/title.it res/baroque.it
 export SOUNDBANK := res/soundbank
 
 include ${PVSNESLIB_HOME}/devkitsnes/snes_rules
 
-SMCONVFLAGS := -s -o $(SOUNDBANK) -V -b 5      # soundbank lives in ROM bank 5 (level data fills the rest)
+SMCONVFLAGS := -s -o $(SOUNDBANK) -V -b 5 -f   # -f: 1st module = SFX bank; soundbank in ROM bank 5
 
 .PHONY: bitmaps all
 
@@ -31,6 +33,9 @@ res/baroque.it: tools/mid2it.py assets/Baroque.mid
 	python3 tools/mid2it.py
 res/title.it: tools/mid2it.py assets/Title.mid
 	python3 tools/mid2it.py title
+# OGG sound effects -> one effects module (tools/adapt_sfx.py reuses mid2it.py's .it writer).
+res/effectssfx.it: tools/adapt_sfx.py tools/mid2it.py
+	python3 tools/adapt_sfx.py
 
 res/level/.stamp: tools/build_level.py
 	python3 tools/build_level.py
