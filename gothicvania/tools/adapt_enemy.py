@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""Convert the skeleton enemy into one 64x64 SNES sprite strip (single 16-colour palette).
+"""Convert the enemies (skeleton, hell-gato, ghost) into SNES sprite strips (one 16-colour palette each).
 
-The hero is kept at full native pixel size (adapt_hero.py: no scaling), so to match the
-hero:enemy proportions the enemies are ALSO native size in a 64x64 OBJ box -- NOT downscaled (the
-earlier 32x32 version looked tiny next to the 64x64 hero). The skeleton's source canvas is 44x52 with
-the FEET fixed at canvas-row 51 in EVERY frame (verified: rise + walk both bottom-out at y51); the rise
-"emergence" is encoded as the figure growing upward from that fixed ground line. So we don't anchor
-per-frame like the hero -- we just paste the pre-aligned canvas into the box at a fixed offset, which
-keeps walk feet-stable AND preserves the rise. Feet land at box-row SK_FEET_BY.
+All three emit a 128-wide strip: gfx4snes -s 64 -R then packs each frame as a CONTIGUOUS 16-wide 4KB band
+(two 64x64 halves), which enemy.c DMAs in two 2KB halves with one setup each -- reliable in the
+music-shortened VBlank, unlike 8 strided per-row DMAs (whose overhead got starved -> dropped rows). Native
+pixel size (no scaling) so the enemies match the 64x64 hero.
 
-Animations (in order; offsets emitted to src/skeleton_anim.h):
-  rise  = skeleton-rise-clothed-1..6  (plays once on spawn, then -> walk)
-  walk  = skeleton-clothed-1..8        (loops; the skeleton shuffles toward the player)
+  * skeleton : 44x52 source canvas, feet fixed at canvas-row 51 in EVERY frame (the rise "emergence" is the
+               figure growing up from that fixed ground line, so no per-frame anchoring). Centred in the LEFT
+               64x64 (1 OBJ). 3 anims: rise (once on spawn) + walk (loops, shuffles to the player) + the
+               shared death poof.
+  * gato     : 96x53 source, ~85px wide -> too wide for one 64x64 OBJ, so it spans the FULL band as a 2-OBJ
+               metasprite (left+right). Feet-anchored (walks on the ground). 1 anim: walk.
+  * ghost    : 37x65 source -> fits the LEFT 64x64 (1 OBJ). Top-aligned; it floats and the AI bobs it
+               vertically. 1 anim: float.
 
-Output: res/skeleton.png (64 x 64*N strip). The Makefile runs gfx4snes -s 8 -R (8-wide raster); enemy.c uploads the
-current 64x64 frame into a per-enemy slot of the enemy VRAM band via a per-row DMA (the 8-wide frame is
-spread into the 16-wide OBJ tile grid, 8 rows x 256 bytes -- see enemy.c enemyUploadFrame).
+Output: res/{skeleton,gato,ghost}.png + src/{skeleton,gato,ghost}_anim.h. /tmp/*_strip.png previews.
 """
 import os, sys
 import numpy as np
@@ -26,64 +26,64 @@ from adapt_assets import to_indexed
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EN   = os.path.join(ROOT, "assets", "gothicvania-cemetery-files", "Assets", "Characters", "Enemies")
 SK   = os.path.join(EN, "skeleton")
-BOX  = 64
-# Source canvas is 44x52 with the feet fixed at canvas-row CANVAS_FEET. Paste so that row lands on
-# box-row SK_FEET_BY (near the bottom, leaving a small margin) -> the tallest pose (45px) fits with
-# headroom and the feet sit at a known box row for OAM positioning + collision.
-CANVAS_FEET = 51
-SK_FEET_BY  = 60
+BOX, STRIP_W = 64, 128
+FEET_BY = 60          # feet land at this box row (the OAM positioning + collision reference in enemy.c)
 
-ANIMS = [
-    ("RISE",  [os.path.join(SK, "skeleton-rise-clothed", f"skeleton-rise-clothed-{i}.png") for i in range(1, 7)]),
-    ("WALK",  [os.path.join(SK, "Sprites", "walk-clothed", f"skeleton-clothed-{i}.png") for i in range(1, 9)]),
-    # shared enemy-death poof (plays once when killed, then despawn). Same 44x52 canvas, feet-aligned, so it
-    # appears where the enemy stood and dissipates upward.
-    ("DEATH", [os.path.join(EN, "EnemyDeath", "Sprites", f"enemy-death-{i}.png") for i in range(1, 6)]),
-]
-
-def conv(path):
+def paste(path, x0, y0):
+    """Paste a source frame into a 64x128 band at (x0,y0); hard alpha (OBJ index 0 = transparent)."""
     a = np.array(Image.open(path).convert("RGBA"))
     ch, cw = a.shape[0], a.shape[1]
-    out = np.zeros((BOX, BOX, 4), np.uint8)
-    x0 = (BOX - cw) // 2                              # centre the canvas horizontally
-    y0 = SK_FEET_BY - CANVAS_FEET                     # canvas feet-row -> box SK_FEET_BY
-    # clip to the box (canvas should fit, but be safe)
-    sx0 = max(0, -x0); sy0 = max(0, -y0)
-    dx0 = max(0, x0);  dy0 = max(0, y0)
-    w = min(cw - sx0, BOX - dx0); h = min(ch - sy0, BOX - dy0)
+    out = np.zeros((BOX, STRIP_W, 4), np.uint8)
+    sx0, sy0 = max(0, -x0), max(0, -y0)
+    dx0, dy0 = max(0, x0), max(0, y0)
+    w = min(cw - sx0, STRIP_W - dx0); h = min(ch - sy0, BOX - dy0)
     seg = a[sy0:sy0 + h, sx0:sx0 + w].copy()
-    seg[seg[:, :, 3] < 128] = 0                       # hard alpha (OBJ index 0 = transparent)
+    seg[seg[:, :, 3] < 128] = 0
     out[dy0:dy0 + h, dx0:dx0 + w] = seg
     return out
 
-frames, counts = [], {}
-for name, paths in ANIMS:
-    for p in paths:
-        frames.append(conv(p))
-    counts[name] = len(paths)
+def centred(path, y0):
+    """Paste centred in the LEFT 64x64 (the skeleton's feet are already aligned within the canvas)."""
+    return paste(path, (BOX - Image.open(path).width) // 2, y0)
 
-N = len(frames)
-# 128-wide strip: the 64x64 skeleton in the LEFT half, right 64 blank. gfx4snes -s 64 then packs each frame
-# as a CONTIGUOUS 16-wide 4KB band, so enemy.c DMAs it in two 2KB halves with one setup each -- reliable in
-# the music-shortened VBlank, unlike 8 strided per-row DMAs (whose overhead got starved -> dropped rows).
-# Costs VRAM (the blank half) so only 2 fit; the 4-enemy version needs WRAM-compositing (a later pass).
-STRIP_W = 128
-strip = np.zeros((BOX * N, STRIP_W, 4), np.uint8)
-for i, f in enumerate(frames):
-    strip[i * BOX:i * BOX + BOX, 0:BOX] = f
-idx, nc = to_indexed(strip, transparent=True, budget=16, name="skeleton")
-idx.save(os.path.join(ROOT, "res", "skeleton.png"))
+def build(name, prefix, anims, paste_fn):
+    """anims = [(ANIM, [paths...]), ...]; paste_fn(path)->64x128 band. Concatenate all frames into one
+    128-wide strip, index to <=16 colours, emit res/<name>.png + src/<name>_anim.h (per-anim offsets)."""
+    frames, counts = [], []
+    for anim, paths in anims:
+        counts.append((anim, len(paths)))
+        frames += [paste_fn(p) for p in paths]
+    N = len(frames)
+    strip = np.zeros((BOX * N, STRIP_W, 4), np.uint8)
+    for i, f in enumerate(frames):
+        strip[i * BOX:i * BOX + BOX] = f
+    idx, nc = to_indexed(strip, transparent=True, budget=16, name=name)
+    idx.save(os.path.join(ROOT, "res", name + ".png"))
+    with open(os.path.join(ROOT, "src", name + "_anim.h"), "w") as h:
+        h.write(f"// generated by tools/adapt_enemy.py -- {name}: 128-wide 64x64-band frames, feet@{FEET_BY}\n")
+        h.write(f"#define {prefix}_FRAMES {N}\n#define {prefix}_FEET_BY {FEET_BY}\n")
+        pos = 0
+        for anim, c in counts:
+            h.write(f"#define {prefix}_{anim}_F {pos}\n#define {prefix}_{anim}_N {c}\n")
+            pos += c
+    print(f"{name}: {N} frames 128-wide, feet@{FEET_BY}, palette {nc} colours")
+    prev = Image.new("RGB", (STRIP_W, BOX * N), (24, 12, 40))
+    prev.paste(idx.convert("RGB"), (0, 0))
+    prev.resize((STRIP_W * 2, BOX * N * 2), Image.NEAREST).save(f"/tmp/{name}_strip.png")
 
-with open(os.path.join(ROOT, "src", "skeleton_anim.h"), "w") as h:
-    h.write("// generated by tools/adapt_enemy.py -- skeleton: 64x64 OBJ frames, feet at row %d\n" % SK_FEET_BY)
-    h.write(f"#define SK_FRAMES {N}\n")
-    h.write(f"#define SK_FEET_BY {SK_FEET_BY}\n")
-    pos = 0
-    for name, _ in ANIMS:
-        h.write(f"#define SK_{name}_F {pos}\n#define SK_{name}_N {counts[name]}\n")
-        pos += counts[name]
-print(f"skeleton: {N} frames 64x64 (native size, feet@{SK_FEET_BY}), palette {nc} colours")
+# skeleton: feet fixed at canvas-row 51 -> box row FEET_BY; centred in the left 64x64.
+build("skeleton", "SK", [
+    ("RISE",  [os.path.join(SK, "skeleton-rise-clothed", f"skeleton-rise-clothed-{i}.png") for i in range(1, 7)]),
+    ("WALK",  [os.path.join(SK, "Sprites", "walk-clothed", f"skeleton-clothed-{i}.png") for i in range(1, 9)]),
+    ("DEATH", [os.path.join(EN, "EnemyDeath", "Sprites", f"enemy-death-{i}.png") for i in range(1, 6)]),
+], lambda p: centred(p, FEET_BY - 51))
 
-# preview the strip on a dark sky, for eyeballing
-prev = Image.new("RGB", (BOX, BOX * N), (24, 12, 40)); prev.paste(idx.convert("RGB"), (0, 0))
-prev.resize((BOX * 3, BOX * N * 3), Image.NEAREST).save("/tmp/skeleton_strip.png")
+# gato: 96-wide canvas centred in the 128 band (x0=16); feet (canvas row ~52) -> box row FEET_BY.
+build("gato", "GATO", [
+    ("WALK", [os.path.join(EN, "hell-gato", "Sprites", f"hell-gato-{i}.png") for i in range(1, 5)]),
+], lambda p: paste(p, 16, FEET_BY - 52))
+
+# ghost: 37-wide canvas in the LEFT 64 (x0=13); 65 tall -> y0=0 clips the empty bottom row. Floats.
+build("ghost", "GHOST", [
+    ("FLOAT", [os.path.join(EN, "ghost", "Sprites", f"ghost-{i}.png") for i in range(1, 5)]),
+], lambda p: paste(p, 13, 0))

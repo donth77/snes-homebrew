@@ -127,7 +127,7 @@ skelpal:        .incbin "res/skeleton.pal"
 skelpalend:
 .ends
 
-; --- Hell-gato + ghost (CC0, tools/adapt_enemy2.py): same 128-wide 4KB-band format. The gato spans the FULL
+; --- Hell-gato + ghost (CC0, tools/adapt_enemy.py): same 128-wide 4KB-band format. The gato spans the FULL
 ;     band (2-OBJ metasprite); the ghost uses the left 64 (1 OBJ). 4 frames each x 4KB = 16KB -> one <32KB
 ;     bank each. Own 16-colour palettes -> OBJ palettes 3 (gato) and 4 (ghost). ---
 .section ".rodata_gato" superfree

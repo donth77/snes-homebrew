@@ -105,10 +105,9 @@ res/hero_a.bin: res/hero.pic
 	dd if=res/hero.pic of=res/hero_c.bin bs=4096 skip=14 2>/dev/null
 	touch data.asm
 
-# Enemies: tools/adapt_enemy.py packs each enemy's animation frames into one 64x64 strip (native scale like the hero).
-# gfx4snes -s 8 keeps PLAIN 8-wide raster order (64 contiguous tiles/frame)
-# -- NOT -s 64, which pairs consecutive frames into a 16-wide layout that's awkward to per-row-DMA from.
-res/skeleton.png src/skeleton_anim.h: tools/adapt_enemy.py
+# Enemies: tools/adapt_enemy.py packs all three enemies (skeleton / hell-gato / ghost) into 128-wide
+# 64x64-band strips (gfx4snes -s 64 -R per .pic below). One script emits all three .png + _anim.h headers.
+res/skeleton.png src/skeleton_anim.h res/gato.png src/gato_anim.h res/ghost.png src/ghost_anim.h: tools/adapt_enemy.py
 	python3 tools/adapt_enemy.py
 
 res/skeleton.pic: res/skeleton.png
@@ -117,10 +116,6 @@ res/skeleton.pic: res/skeleton.png
 	dd if=res/skeleton.pic of=res/skel_b.bin bs=4096 skip=7  count=7 2>/dev/null    # frames 7..13
 	dd if=res/skeleton.pic of=res/skel_c.bin bs=4096 skip=14 2>/dev/null            # frames 14..18 (death)
 	touch data.asm
-
-# Hell-gato + ghost (tools/adapt_enemy2.py): same 128-wide band format, 4 frames each (one bank, no split).
-res/gato.png src/gato_anim.h res/ghost.png src/ghost_anim.h: tools/adapt_enemy2.py
-	python3 tools/adapt_enemy2.py
 
 res/gato.pic: res/gato.png
 	$(GFXCONV) -s 64 -o 16 -u 16 -R -t png -i res/gato.png

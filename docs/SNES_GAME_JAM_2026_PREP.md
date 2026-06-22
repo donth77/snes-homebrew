@@ -30,7 +30,8 @@ reusable parts into a clean **template project** you can `cp -r` and start a gam
   owning its VRAM/palette/audio setup. Generalize to N states.
 - **Page-streaming level renderer** (`level.c`, `play.c`): 64×32 two-slot page window with
   bidirectional camera + per-tile collision (`cellv`), streaming a 4800px level in <16 KB of
-  VRAM. This is the hard part and it works — keep it.
+  VRAM. This is the hard part and it works — but it is **platformer-shaped**, not genre-neutral
+  (see "Primitives vs. genre-specific systems" below before assuming it carries over).
 - **Per-frame sprite DMA** (`player.c`, `enemy.c`): 64×64 metasprites uploaded as two 2 KB halves
   per VBlank, round-robined and deferred behind page streams. Includes the OAM z-order rules.
 - **HDMA parallax + colour-math sky gradient** (`level.c`): 3-depth scroll banding on one BG +
@@ -43,6 +44,48 @@ reusable parts into a clean **template project** you can `cp -r` and start a gam
 **Action:** make `snes-starter/` — the above with the Gothicvania-specific content stripped out,
 a `hello` level, and a README. Starting a jam game from a known-good force-blank/DMA/VBlank
 skeleton saves the first painful week.
+
+### Primitives vs. genre-specific systems (can this become an any-genre toolkit?)
+
+Tempting question: could this become a *general* SNES engine for any genre? Mostly **no — and for
+a deeper reason than gameplay**: SNES genres differ at the **PPU/hardware level**, not just in
+rules. A Mode-7 racer, a top-down RPG, a horizontal shmup, and this platformer use BG modes,
+scrolling, HDMA, and sprite budgets *completely differently*. A renderer general enough to do all
+of them is either bloated or lowest-common-denominator. Even pro SNES engines were genre-specialized.
+
+So the right target is **not** a general engine — it's a **genre-agnostic primitives layer** you
+specialize per game. That layer is most of the painful hardware-fighting, and it *does* carry over:
+
+**Genre-agnostic — lift into `snes-starter/` as-is:**
+- **State machine** (`game.c/.h`, `main.c`) — every game has states.
+- **Sprite DMA engine** (`player.c`, `enemy.c`) — the real gold: per-frame metasprite upload in
+  VBlank halves, round-robin, deferred behind other DMA. The VBlank-budget discipline is universal.
+- **Audio** (snesmod soundbank, `mid2it.py`, `spcEffect`), **region handling** (`snes_50hz`
+  scaling), the **raw HDMA mechanism**, the **Mesen headless test harness**, the **build/toolchain
+  setup**, and the **hardware-gotcha knowledge** — all genre-independent, and the highest-leverage
+  things you own.
+
+**Genre-specific — rebuilt per genre, NOT in the starter:**
+- **The level renderer** (`level.c`, `play.c`) — assumes *horizontal* page-streaming, a wide 1D
+  level, and gravity + feet-anchored tile collision. None of that serves top-down (2D scroll),
+  shmup (vertical scroll + wave scripting), single-screen puzzle (no streaming), or Mode 7.
+- **Combat** (`enemyCombat`, knockback) — action-game gameplay.
+- **The level data format** + `build_level.py` / `build_stream.py` — platformer-shaped.
+
+**Level authoring is the most genre-specific part of all** (and splits further than "needs an editor"):
+- **Platformer / top-down / RPG** → tile-based, so **Tiled** covers all three — but with *different
+  export configs* (1D-horizontal vs 2D collision, object/spawn layers). `build_level.py` is one such config.
+- **Shmup** → barely has level geometry; it's **enemy waves + bullet paths** → a wave/path *scripting*
+  tool, not a tile editor.
+- **Puzzle** → board state, often no scrolling → a board editor or just code.
+- **Mode-7 racer** → track + heightmap authoring → a wholly different pipeline.
+
+**Recommendation:** extract the primitives starter, **pick the genre early**, then build the *one*
+genre-specific renderer + level pipeline you actually need on top of it. Don't build the general
+toolkit — it's a time sink, and the jam rewards a finished game, not an engine. The two tools worth
+generalizing *regardless* of genre: a **parameterized sprite importer** (the converters here hardcode
+each sprite's anchor/paths) and a **shared-palette manager** (palette juggling across assets is a
+universal SNES pain).
 
 ## 2. Keep the tools — they're your real advantage
 
