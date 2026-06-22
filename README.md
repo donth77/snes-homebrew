@@ -2,16 +2,16 @@
 
 Original SNES games written in **C with [PVSnesLib](https://github.com/alekmaul/pvsneslib)**, built
 to strict hardware constraints: **LoROM, ≤512 KB, no enhancement chips, no SRAM, a single ROM that
-runs on both NTSC (60 Hz) and PAL (50 Hz)** via runtime region detection, must work on **real
-hardware**, and **100% original work** (code + CC0/original assets).
+runs on both NTSC (60 Hz) and PAL (50 Hz)** via runtime region detection, and works on real
+hardware.
 
-This repo holds two builds — a pipeline proof, and a complete game.
+This repo holds two builds: a pipeline proof and a complete game demo.
 
 ---
 
 ## Gothicvania (`gothicvania/`)
 
-A complete original SNES action-platformer set in a haunted graveyard.
+A SNES action-platformer demo set in a haunted graveyard.
 
 ![Gothicvania — the hero faces a risen skeleton under a blood moon](media/gothicvania.png)
 
@@ -31,18 +31,15 @@ A complete original SNES action-platformer set in a haunted graveyard.
 
 ## hello-world-region (`hello-world-region/`)
 
-The first build — a region-aware "hello world" that proves the full pipeline end to end
+A region-aware "hello world" that proves the full pipeline end to end
 (C → 816-tcc → WLA-DX → ROM → Mesen2 → hardware) and demonstrates correct, identical behavior at
-both 50 Hz and 60 Hz. Small and foundational; everything else builds on what it established.
+both 50 Hz and 60 Hz.
 
 ![hello-world-region — region detection (NTSC / 60 Hz) and a per-second counter](media/hello-world-region.png)
 
 ---
 
-## Toolchain (pinned)
-
-The installed PVSnesLib version is pinned here because the API surface drifts between releases —
-**when a tutorial and an installed header disagree, trust the header.**
+## Toolchain 
 
 | Tool | Version | Installed at | Source |
 |------|---------|--------------|--------|

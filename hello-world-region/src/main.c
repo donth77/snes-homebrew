@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------------
-    hello-world  —  Slice 1: Region-aware "Hello World"
+    hello-world  —  Region-aware "Hello World"
 
     Goal: prove the whole pipeline (compile -> Mesen2 -> real hardware) AND bake
     in NTSC/PAL correctness from the very first line, so it's never bolted on later.
@@ -10,8 +10,7 @@
       * Ticks a seconds counter at the SAME wall-clock rate on both regions, by
         counting `snes_fps` frames per second instead of hardcoding 60.
 
-    API provenance (per project CLAUDE.md -- verified against installed v4.5.0
-    headers, not memory):
+    API provenance:
       - snes_50hz, snes_fps, consoleDrawText, consoleInitText  -> include/snes/console.h
       - WaitForVBlank                                          -> include/snes/interrupt.h
       - setMode, bgSet*, setScreenOn, BG_MODE1, SC_32x32       -> include/snes/background.h, video.h
@@ -64,7 +63,7 @@ int main(void)
         // Each loop iteration is exactly one frame, because WaitForVBlank() below
         // blocks until the next VBlank. So counting `snes_fps` frames == 1 real
         // second, IDENTICALLY on NTSC (60) and PAL (50). Hardcoding 60 here would
-        // make the counter run ~17% slow on PAL -- the bug this slice exists to avoid.
+        // make the counter run ~17% slow on PAL -- the bug this exists to avoid.
         frames++;
         if (frames >= snes_fps)
         {
