@@ -48,6 +48,7 @@ GameState titleState(void)
     armSkyGradient();
 
     spcLoad(MOD_TITLE);                          // load the title song (during force blank)
+    spcSetModuleVolume(255);                     // restore full volume (the end/game-over screens mute it to 0)
     setScreenOn();
     spcPlay(0);                                  // play it (loops)
 

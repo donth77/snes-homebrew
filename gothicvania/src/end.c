@@ -11,6 +11,9 @@ GameState endState(void)
     u16 prevPad = padsCurrent(0), t = 0;
 
     setScreenOff();
+    spcStop();                                       // stop the sequencer + mute the module volume to kill any
+    spcSetModuleVolume(0);                           // ringing/sustained notes. NO spcFlush -- it blocks during
+                                                     // force-blank; the loop's spcProcess sends these queued msgs.
     setMode(BG_MODE1, 0);
 
     bgInitTileSet(0, &title_thanks_tiles, &title_thanks_pal, 1,
@@ -27,7 +30,6 @@ GameState endState(void)
     REG_CGADSUB = 0x00;                              // colour math off
     setPaletteColor(0, SKY_BACKDROP);                // dark backdrop behind the text
 
-    spcStop();                                       // STOP the looping in-game music on the end screen
     setScreenOn();
 
     for (;;) {

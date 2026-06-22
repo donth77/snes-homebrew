@@ -23,6 +23,7 @@ GameState playState(void)
     u8  hurtFlag = 0;                           // enemy contact staggers you (pop-up + shove) until you land
     s8  hurtDir = 0;                            // knockback push direction, away from the enemy (-1 L / +1 R)
     u8  health = PLAYER_HP;                     // 3 hits -> GAME OVER (the hurtFlag i-frame = 1 hit per stagger)
+    u8  spikeCD = 0;                            // spike-damage cooldown (own i-frame; does NOT lock input)
     u16 prevPad = 0;
     s16 WALK, GRAV, JUMP, VYMAX, HSHOVE, HPOP;  // HSHOVE/HPOP = enemy-contact knockback (region-scaled)
     // --- deco tile-streaming state (persists across frames; fresh each playState entry) ---
@@ -110,6 +111,7 @@ GameState playState(void)
         spcLoadEffect(SFX_HURT);
         spcLoadEffect(SFX_RISE);                  // skeleton rise (enemyUpdate fires it on spawn)
         spcLoadEffect(SFX_KILL);                  // enemy death (enemyCombat fires it on a kill)
+        spcSetModuleVolume(255);                  // restore full volume (game-over/end screens mute to 0)
     }
     WaitForVBlank();                              // upload the OAM (hero placed + moon) BEFORE the screen on
     setScreenOn();
@@ -192,6 +194,20 @@ GameState playState(void)
             } else onGround = 0;
         } else onGround = 0;
 
+        // Spikes: the demo's two pits (cols 122-125, 166-180) are a 1-tile-deep dip with spikes on the row-13
+        // floor; the demo resets you, we take 1 HP. Touch = a small hop up + 1 HP + a brief cooldown. NO
+        // horizontal shove and NO input lock (those turned the shallow dip into an inescapable "wall") -- so
+        // you can immediately jump/steer out, or jump the pit entirely (pit 2 has platforms to hop across).
+        if (spikeCD) spikeCD--;
+        if (!spikeCD && (feetY >> 8) >= 206) {       // down on the spike floor (row 13 = y208)
+            u16 hc = (u16)((feetX >> 8) >> 4);
+            if ((hc >= 122 && hc <= 125) || (hc >= 166 && hc <= 180)) {
+                spikeCD = 40; vy = HPOP; onGround = 0;   // hop up; you keep full control to escape
+                spcEffect(4, SFX_HURT, 15 * 16 + 8);
+                if (--health == 0) { WaitForVBlank(); setBrightness(0); return ST_GAMEOVER; }
+            }
+        }
+
         // --- camera follows the player ---
         ix = feetX >> 8;
         c = ix - 128;
@@ -209,8 +225,9 @@ GameState playState(void)
             return ST_PLAY;
         }
 
-        // Level-end trigger: the hero reaches the right edge of the 4800px level -> "Thanks for Playing".
-        if ((feetX >> 8) >= LVL_PXW - 40) return ST_END;
+        // Level-end trigger: reaching the FINAL TREE (~x4670, on the last screen) -> "Thanks for Playing".
+        // (Was the bare level edge at x4760, which made you walk to the very edge past the tree.)
+        if ((feetX >> 8) >= 4680) return ST_END;
 
         // --- stream the next page (ground map + window-local deco map + deco TILES) into its OFF-screen
         //     slot, well before the camera reveals it (~85 frames of runway at walk speed). The deco
