@@ -205,8 +205,10 @@ void enemyUpdate(void)
                     en[i].frame = (u8)(SK_WALK_F + ((en[i].frame - SK_WALK_F + 1) & (SK_WALK_N - 1))); }
             }
         } else if (en[i].type == ET_GATO) {
-            // pace back and forth: flip on the turn timer OR when a wall / pit is just ahead. facing 0 = right.
-            s16 dir = en[i].facing ? -1 : 1;
+            // pace back and forth: flip on the turn timer OR when a wall / pit is just ahead. The gato art
+            // faces LEFT by default (no hflip), so facing 0 (no flip) = moving LEFT, facing 1 = moving right.
+            // (Had this inverted -> the cat moonwalked, moving one way while facing/animating the other.)
+            s16 dir = en[i].facing ? 1 : -1;
             s16 aheadCol = (en[i].wx + dir * 36) >> 4;
             if (en[i].aux == 0 ||
                 cellv(aheadCol, 11) == 1 ||            // wall ahead at body height
