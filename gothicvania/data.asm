@@ -126,3 +126,21 @@ skel_c:         .incbin "res/skel_c.bin"      ; frames 14..18 (shared death poof
 skelpal:        .incbin "res/skeleton.pal"
 skelpalend:
 .ends
+
+; --- Hell-gato + ghost (CC0, tools/adapt_enemy2.py): same 128-wide 4KB-band format. The gato spans the FULL
+;     band (2-OBJ metasprite); the ghost uses the left 64 (1 OBJ). 4 frames each x 4KB = 16KB -> one <32KB
+;     bank each. Own 16-colour palettes -> OBJ palettes 3 (gato) and 4 (ghost). ---
+.section ".rodata_gato" superfree
+gato:           .incbin "res/gato.bin"        ; 4 walk frames, 128-wide 4KB bands
+.ends
+.section ".rodata_gatopal" superfree
+gatopal:        .incbin "res/gato.pal"
+gatopalend:
+.ends
+.section ".rodata_ghost" superfree
+ghost:          .incbin "res/ghost.bin"       ; 4 float frames, ghost in the left 64x64
+.ends
+.section ".rodata_ghostpal" superfree
+ghostpal:       .incbin "res/ghost.pal"
+ghostpalend:
+.ends

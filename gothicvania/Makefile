@@ -108,4 +108,18 @@ res/skeleton.pic: res/skeleton.png
 	dd if=res/skeleton.pic of=res/skel_c.bin bs=4096 skip=14 2>/dev/null            # frames 14..18 (death)
 	touch data.asm
 
-bitmaps: res/hero_a.bin res/skeleton.pic res/level/.stamp res/level/ground_tileset.pic res/level/deco_pt0.bin res/level/parallax_tiles.pic res/level/sky_coldata.bin res/moon.pic res/title_logo.pic
+# Hell-gato + ghost (tools/adapt_enemy2.py): same 128-wide band format, 4 frames each (one bank, no split).
+res/gato.png src/gato_anim.h res/ghost.png src/ghost_anim.h: tools/adapt_enemy2.py
+	python3 tools/adapt_enemy2.py
+
+res/gato.pic: res/gato.png
+	$(GFXCONV) -s 64 -o 16 -u 16 -R -t png -i res/gato.png
+	dd if=res/gato.pic of=res/gato.bin 2>/dev/null
+	touch data.asm
+
+res/ghost.pic: res/ghost.png
+	$(GFXCONV) -s 64 -o 16 -u 16 -R -t png -i res/ghost.png
+	dd if=res/ghost.pic of=res/ghost.bin 2>/dev/null
+	touch data.asm
+
+bitmaps: res/hero_a.bin res/skeleton.pic res/gato.pic res/ghost.pic res/level/.stamp res/level/ground_tileset.pic res/level/deco_pt0.bin res/level/parallax_tiles.pic res/level/sky_coldata.bin res/moon.pic res/title_logo.pic
