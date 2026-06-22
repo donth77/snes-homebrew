@@ -10,7 +10,7 @@
 .ENDME          ; End MemoryMap definition
 
 .ROMBANKSIZE $8000              ; Every ROM bank is 32 KBytes in size
-.ROMBANKS 12                    ; 384 KB (<=512 KB compo limit) - room for the SFX soundbank + enemies
+.ROMBANKS 16                    ; 512 KB (= compo limit) - the demo-size enemy sprites (padded 64x64) are heavy
 
 .SNESHEADER
   ID "SNES"                     ; 1-4 letter string, just leave it as "SNES"

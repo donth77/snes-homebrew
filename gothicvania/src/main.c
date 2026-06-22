@@ -13,7 +13,7 @@
 
 int main(void)
 {
-    GameState st = ST_TITLE;
+    GameState st = ST_TITLE, prev = ST_TITLE;
 
     // Boot the SNESMod sound engine and point it at our soundbank (title + in-game songs). Once, at
     // startup (spcBoot uploads the SPC700 driver and takes a moment). Each state then loads/plays/stops
@@ -44,10 +44,13 @@ int main(void)
 #endif
 
     for (;;) {
+        respawn = (st == ST_PLAY && prev == ST_PLAY);   // PLAY->PLAY = pit respawn: keep music, skip reload
+        prev = st;
         switch (st) {
-            case ST_TITLE: st = titleState(); break;
-            case ST_PLAY:  st = playState();  break;
-            case ST_END:   st = endState();   break;
+            case ST_TITLE:    st = titleState();    break;
+            case ST_PLAY:     st = playState();     break;
+            case ST_END:      st = endState();      break;
+            case ST_GAMEOVER: st = gameoverState(); break;
         }
     }
     return 0;

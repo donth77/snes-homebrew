@@ -103,8 +103,9 @@ res/skeleton.png src/skeleton_anim.h: tools/adapt_enemy.py
 
 res/skeleton.pic: res/skeleton.png
 	$(GFXCONV) -s 64 -o 16 -u 16 -R -t png -i res/skeleton.png
-	dd if=res/skeleton.pic of=res/skel_a.bin bs=4096 count=7 2>/dev/null   # frames 0..6  (4KB bands)
-	dd if=res/skeleton.pic of=res/skel_b.bin bs=4096 skip=7  2>/dev/null   # frames 7..13 (each <32KB bank)
+	dd if=res/skeleton.pic of=res/skel_a.bin bs=4096 count=7 2>/dev/null            # frames 0..6  (4KB bands)
+	dd if=res/skeleton.pic of=res/skel_b.bin bs=4096 skip=7  count=7 2>/dev/null    # frames 7..13
+	dd if=res/skeleton.pic of=res/skel_c.bin bs=4096 skip=14 2>/dev/null            # frames 14..18 (death)
 	touch data.asm
 
 bitmaps: res/hero_a.bin res/skeleton.pic res/level/.stamp res/level/ground_tileset.pic res/level/deco_pt0.bin res/level/parallax_tiles.pic res/level/sky_coldata.bin res/moon.pic res/title_logo.pic

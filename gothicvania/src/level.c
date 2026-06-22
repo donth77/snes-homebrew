@@ -60,8 +60,8 @@ void setupMoon(u8 prio)
     oamInitGfxAttr(HERO_VRAM, OBJ_SIZE32_L64);
     dmaCopyVram(&moontiles, MOON_VRAM, (&moontilesend - &moontiles));
     setPalette(&moonpal, 128 + 16, (&moonpalend - &moonpal));
-    oamSet(8, 96, 28, prio, 0, 0, 128, 1);           // moon+glow, ONE 64x64 OBJ (was two: 128x64). The
-    oamSetEx(8, OBJ_LARGE, OBJ_SHOW);                 // freed 2KB (tiles 192..255, 0x0C00) is the enemy band.
+    oamSet(MOON_OAM, 96, 28, prio, 0, 0, 128, 1);    // moon+glow, ONE 64x64 OBJ (was two: 128x64). The
+    oamSetEx(MOON_OAM, OBJ_LARGE, OBJ_SHOW);          // freed 2KB (tiles 192..255, 0x0C00) is the enemy band.
 }
 
 // Smooth night-sky gradient via COLOR MATH on HDMA ch6. The BG2 sky is transparent, so the

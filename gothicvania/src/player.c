@@ -20,8 +20,10 @@ u8 *heroFrameSrc(u8 f)
 // Two 64x64 OBJs make the full 128x64 hero: OBJ0 = left half, OBJ4 = right half.
 void setupHero(void)
 {
-    oamInitGfxSet(heroFrameSrc(0), HERO_BANDSZ, &hero_pal, (&hero_palend - &hero_pal),
-                  0, HERO_VRAM, OBJ_SIZE32_L64);
-    oamSetEx(0, OBJ_LARGE, OBJ_SHOW);                 // OBJ0 = left half
-    oamSetEx(4, OBJ_LARGE, OBJ_SHOW);                 // OBJ4 = right half
+    // Palette size is the literal 32 (a 16-colour OBJ palette), NOT (&hero_palend - &hero_pal): with the ROM
+    // fuller now, that tiny .rodata_heropal section lands at a bank tail, so hero_palend resolves to offset
+    // $10000 and `lda.w #hero_palend` overflows 16 bits at assemble time. The literal avoids referencing it.
+    oamInitGfxSet(heroFrameSrc(0), HERO_BANDSZ, &hero_pal, 32, 0, HERO_VRAM, OBJ_SIZE32_L64);
+    oamSetEx(HERO_OAM,     OBJ_LARGE, OBJ_SHOW);      // left half
+    oamSetEx(HERO_OAM + 4, OBJ_LARGE, OBJ_SHOW);      // right half
 }

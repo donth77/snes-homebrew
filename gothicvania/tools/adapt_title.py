@@ -126,10 +126,12 @@ def emit(name, canvas, colors):
 
 
 WHITE = (236, 232, 224)                                   # end-screen "THANKS FOR PLAYING" (soft white)
-SUBPAL = {"title_logo": 1, "title_press": 2, "title_thanks": 1}   # CGRAM blocks 1/2 (logo & thanks reuse 1)
-emit("title_logo",   place(snap_logo(),                       LOGO_CY),  [RED, PURPLE])
-emit("title_press",  place(make_text("PRESS START"),          PRESS_CY), [GOLD])
-emit("title_thanks", place(make_text("THANKS FOR PLAYING"),   112),      [WHITE])
+BLOOD = (200, 24, 24)                                      # game-over "GAME OVER" (blood red)
+SUBPAL = {"title_logo": 1, "title_press": 2, "title_thanks": 1, "title_gameover": 1}   # CGRAM blocks 1/2
+emit("title_logo",     place(snap_logo(),                     LOGO_CY),  [RED, PURPLE])
+emit("title_press",    place(make_text("PRESS START"),        PRESS_CY), [GOLD])
+emit("title_thanks",   place(make_text("THANKS FOR PLAYING"), 112),      [WHITE])
+emit("title_gameover", place(make_text("GAME OVER"),          112),      [BLOOD])
 
 # preview the composited title overlay (logo + press) on a dark sky, for eyeballing
 prev = np.full((SCR_H, SCR_W, 3), (20, 8, 34), np.uint8)

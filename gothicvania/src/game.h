@@ -67,16 +67,21 @@
 #define JUMP_KEYS   (KEY_B | KEY_A)
 #define ATTACK_KEYS (KEY_Y | KEY_X)
 
+#define PLAYER_HP   3                     // contact hits the hero survives; the 3rd -> GAME OVER
+
 #define PPU_CLEAN_INIT 1   // clear the PPU's power-on garbage (colour math / windows / CGRAM); see main()
 
 // ---- game state machine ----
-typedef enum { ST_TITLE, ST_PLAY, ST_END } GameState;
+typedef enum { ST_TITLE, ST_PLAY, ST_END, ST_GAMEOVER } GameState;
 GameState titleState(void);
 GameState playState(void);
 GameState endState(void);
+GameState gameoverState(void);   // shown on death (HP -> 0); START returns to the title
 
 // ---- shared world/player state (defined in game.c) ----
 extern u16 camX, curA, curB;
+extern u16 respawns;                                 // pit-fall respawn count (hero dropped off the level)
+extern u8  respawn;                                  // 1 when PLAY is re-entered after a respawn (skip audio reload)
 extern s32 feetX, feetY;                              // 8.8 fixed-point pixels
 extern s16 vx, vy;
 extern u8  onGround, facing;
@@ -95,8 +100,9 @@ extern unsigned char moontiles, moontilesend, moonpal, moonpalend;
 extern unsigned char title_logo_tiles,  title_logo_tilesend,  title_logo_pal,  title_logo_map;
 extern unsigned char title_press_tiles, title_press_tilesend, title_press_pal, title_press_map;
 extern unsigned char title_thanks_tiles, title_thanks_tilesend, title_thanks_pal, title_thanks_map;
+extern unsigned char title_gameover_tiles, title_gameover_tilesend, title_gameover_pal, title_gameover_map;
 extern unsigned char hero_a, hero_b, hero_c, hero_pal, hero_palend;
-extern unsigned char skel_a, skel_b, skelpal, skelpalend;   // skeleton enemy: 128-wide 4KB frame bands (a/b) + pal
+extern unsigned char skel_a, skel_b, skel_c, skelpal, skelpalend;  // skeleton: 128-wide 4KB bands a(0-6)/b(7-13)/c(14-18 death) + pal
 extern const unsigned char levelCollision[];
 
 // ---- audio (snesmod soundbank, built by smconv from the Makefile's AUDIOFILES) ----
@@ -133,7 +139,12 @@ void setupHero(void);          // load hero palette + frame 0 into the OBJ slot 
 // fit the 0x1000..0x2000 OBJ region -> 2 on-screen enemies (4 needs WRAM-compositing, a later pass).
 #define ENEMY_SLOTS    2
 #define ENEMY_PAL      2       // OBJ palette 2 (CGRAM 128+32); hero = 0, moon = 1
-#define ENEMY_OAM_BASE 12      // OAM ids 12,16 (entries 3,4); hero = 0,4  moon = 8
+// OAM slot order = sprite z-order (lower id = drawn IN FRONT). The demo draws enemies + their death poof
+// ON TOP of the hero (the poof pops at the sword tip), so enemies take the front slots and the hero sits
+// behind them. Moon is last (it's up in the sky, never overlaps anyone).
+#define ENEMY_OAM_BASE 0       // enemy OBJ ids 0,4  (entries 0,1) -- IN FRONT of the hero
+#define HERO_OAM       8       // hero  OBJ ids 8,12 (entries 2,3) -- behind the enemies/poof
+#define MOON_OAM       16      // moon  OBJ id 16    (entry 4)
 u8 *skeletonFrameSrc(u8 f);
 void enemyInit(void);          // load enemy palette + clear the pool + spawn flags
 void enemyUpdate(void);        // tick enemy animation/AI (main loop)

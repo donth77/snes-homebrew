@@ -79,6 +79,10 @@ title_thanks_tiles: .incbin "res/title_thanks.pic"   ; END screen "THANKS FOR PL
 title_thanks_tilesend:
 title_thanks_pal:  .incbin "res/title_thanks.pal"
 title_thanks_map:  .incbin "res/title_thanks.map"
+title_gameover_tiles: .incbin "res/title_gameover.pic"   ; GAME OVER screen (death) overlay (BG0)
+title_gameover_tilesend:
+title_gameover_pal: .incbin "res/title_gameover.pal"
+title_gameover_map: .incbin "res/title_gameover.map"
 .ends
 
 ; Moon: a single 64x64 OBJ sprite (own palette), fixed in the sky, drawn behind the mountains.
@@ -113,7 +117,10 @@ hero_palend:
 skel_a:         .incbin "res/skel_a.bin"      ; 128-wide 4KB frame bands, frames 0..6
 .ends
 .section ".rodata_skel_b" superfree
-skel_b:         .incbin "res/skel_b.bin"      ; frames 7..13 (14 frames x 4KB = 56KB -> two <32KB banks)
+skel_b:         .incbin "res/skel_b.bin"      ; frames 7..13
+.ends
+.section ".rodata_skel_c" superfree
+skel_c:         .incbin "res/skel_c.bin"      ; frames 14..18 (shared death poof). 19 x 4KB = 76KB -> 3 banks
 .ends
 .section ".rodata_skelpal" superfree
 skelpal:        .incbin "res/skeleton.pal"

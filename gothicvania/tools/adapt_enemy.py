@@ -34,8 +34,11 @@ CANVAS_FEET = 51
 SK_FEET_BY  = 60
 
 ANIMS = [
-    ("RISE", [os.path.join(SK, "skeleton-rise-clothed", f"skeleton-rise-clothed-{i}.png") for i in range(1, 7)]),
-    ("WALK", [os.path.join(SK, "Sprites", "walk-clothed", f"skeleton-clothed-{i}.png") for i in range(1, 9)]),
+    ("RISE",  [os.path.join(SK, "skeleton-rise-clothed", f"skeleton-rise-clothed-{i}.png") for i in range(1, 7)]),
+    ("WALK",  [os.path.join(SK, "Sprites", "walk-clothed", f"skeleton-clothed-{i}.png") for i in range(1, 9)]),
+    # shared enemy-death poof (plays once when killed, then despawn). Same 44x52 canvas, feet-aligned, so it
+    # appears where the enemy stood and dissipates upward.
+    ("DEATH", [os.path.join(EN, "EnemyDeath", "Sprites", f"enemy-death-{i}.png") for i in range(1, 6)]),
 ]
 
 def conv(path):

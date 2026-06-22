@@ -20,10 +20,11 @@ GameState playState(void)
     u8  animFrame = 0, lastAnimF = 255, lastGfx = 255, heroGfx = 0;
     u8  heroDmaQueue = 0, heroQueuedGfx = 0;   // hero frame uploaded as 2x 2KB halves (one per VBlank)
     u8  attackTimer = 0;
-    u8  invuln = 0, kbTimer = 0;                // i-frames after a hit + knockback timer (input locked)
-    s8  kbDir = 0;                              // knockback direction (-1 left, +1 right)
+    u8  hurtFlag = 0;                           // enemy contact staggers you (pop-up + shove) until you land
+    s8  hurtDir = 0;                            // knockback push direction, away from the enemy (-1 L / +1 R)
+    u8  health = PLAYER_HP;                     // 3 hits -> GAME OVER (the hurtFlag i-frame = 1 hit per stagger)
     u16 prevPad = 0;
-    s16 WALK, GRAV, JUMP, VYMAX;
+    s16 WALK, GRAV, JUMP, VYMAX, HSHOVE, HPOP;  // HSHOVE/HPOP = enemy-contact knockback (region-scaled)
     // --- deco tile-streaming state (persists across frames; fresh each playState entry) ---
     u8  streaming = 0, streamMapPending = 0, streamPage = 0;
     u16 streamOff = 0, streamLen = 0, streamTileDst = 0, streamMapSlot = 0;
@@ -84,6 +85,8 @@ GameState playState(void)
     GRAV  = snes_50hz ? 30   : 21;
     JUMP  = snes_50hz ? -870 : -725;
     VYMAX = snes_50hz ? 1229 : 1024;
+    HSHOVE = snes_50hz ? 512  : 427;             // enemy knockback shove (demo vx = +-100 px/s)
+    HPOP   = snes_50hz ? -768 : -640;            // enemy knockback pop-up (demo vy = -150 px/s)
     feetX = (s32)80 << 8;
     feetY = (s32)192 << 8;                            // start standing on the ground
     vx = vy = 0;
@@ -92,20 +95,25 @@ GameState playState(void)
     {
         s16 hx = (feetX >> 8) - camX;
         s16 hy = (feetY >> 8) - SPR_OY;
-        oamSet(0, hx - HERO_LEFT_DX, hy, 3, facing, 0, facing ? 8 : 0, 0);
-        oamSet(4, hx,                hy, 3, facing, 0, facing ? 0 : 8, 0);
+        oamSet(HERO_OAM,     hx - HERO_LEFT_DX, hy, 3, facing, 0, facing ? 8 : 0, 0);
+        oamSet(HERO_OAM + 4, hx,                hy, 3, facing, 0, facing ? 0 : 8, 0);
     }
     enemyDraw();                                  // place the test skeletons too, before the screen turns on
 
-    spcLoad(MOD_BAROQUE);                         // load the in-game Baroque track (during force blank)
-    spcLoadEffect(SFX_JUMP);                      // (re)load the player SFX into the sound region (loading
-    spcLoadEffect(SFX_ATTACK);                    // a module resets it, so this must follow spcLoad)
-    spcLoadEffect(SFX_HURT);
-    spcLoadEffect(SFX_RISE);                      // skeleton rise (enemyUpdate fires it on spawn)
-    spcLoadEffect(SFX_KILL);                      // enemy death (enemyCombat fires it on a kill)
+    // On a death respawn (PLAY->PLAY) the Baroque track + SFX are already in ARAM and the song is mid-play;
+    // re-running spcLoad would re-upload the whole module (the multi-frame stall behind the death's black
+    // flash) AND restart the song. So load only on a FRESH entry; on respawn keep the music running.
+    if (!respawn) {
+        spcLoad(MOD_BAROQUE);                     // load the in-game Baroque track (during force blank)
+        spcLoadEffect(SFX_JUMP);                  // (re)load the player SFX into the sound region (loading
+        spcLoadEffect(SFX_ATTACK);                // a module resets it, so this must follow spcLoad)
+        spcLoadEffect(SFX_HURT);
+        spcLoadEffect(SFX_RISE);                  // skeleton rise (enemyUpdate fires it on spawn)
+        spcLoadEffect(SFX_KILL);                  // enemy death (enemyCombat fires it on a kill)
+    }
     WaitForVBlank();                              // upload the OAM (hero placed + moon) BEFORE the screen on
     setScreenOn();
-    spcPlay(0);                                   // play the music (loops); SFX fire via spcEffect()
+    if (!respawn) spcPlay(0);                     // play the music (loops); SFX fire via spcEffect()
 
     while (1)
     {
@@ -134,21 +142,20 @@ GameState playState(void)
         // Attack triggers on a fresh press while grounded. Once attacking, the d-pad is
         // ignored -- movement and facing are locked until the swing finishes (so pressing
         // attack while running stops you, and holding a direction mid-swing does nothing).
-        if ((pad & ATTACK_KEYS) && !(prevPad & ATTACK_KEYS) && !attackTimer && onGround && !kbTimer) {
+        if ((pad & ATTACK_KEYS) && !(prevPad & ATTACK_KEYS) && !attackTimer && onGround && !hurtFlag) {
             attackTimer = A_ATTACK_N * 5;
             spcEffect(4, SFX_ATTACK, 15 * 16 + 8);   // pitch 4 = 16kHz, vol 15, pan centre
         }
         if (attackTimer) attackTimer--;
-        if (invuln)     invuln--;                    // i-frames tick down after a hit
         attacking = (attackTimer != 0);
 
         crouching = (onGround && (pad & KEY_DOWN) && !attacking);
-        if (!attacking && !crouching) {
+        if (!attacking && !crouching && !hurtFlag) {
             if (mv & KEY_LEFT)  { vx = -WALK; facing = 1; }
             if (mv & KEY_RIGHT) { vx =  WALK; facing = 0; }
         }
-        if (kbTimer) { vx = (s16)kbDir * WALK; kbTimer--; }   // knockback overrides movement while staggered
-        if ((pad & JUMP_KEYS) && !(prevPad & JUMP_KEYS) && onGround && !attacking && !kbTimer) {
+        if (hurtFlag) vx = (s16)hurtDir * HSHOVE;     // staggered: coast away from the enemy, no input control
+        if ((pad & JUMP_KEYS) && !(prevPad & JUMP_KEYS) && onGround && !attacking && !hurtFlag) {
             vy = JUMP; onGround = 0;
             spcEffect(4, SFX_JUMP, 15 * 16 + 8);     // pitch 4 = 16kHz, vol 15, pan centre
         }
@@ -181,7 +188,7 @@ GameState playState(void)
             cv = cellv(fcol, frow);
             // land on a full-solid tile always; on a one-way platform only when dropping onto its top
             if (cv == 1 || (cv == 2 && prevFeetPx <= (frow << 4))) {
-                feetY = (s32)(frow << 4) << 8; vy = 0; onGround = 1;
+                feetY = (s32)(frow << 4) << 8; vy = 0; onGround = 1; hurtFlag = 0;   // landing ends the stagger
             } else onGround = 0;
         } else onGround = 0;
 
@@ -191,6 +198,16 @@ GameState playState(void)
         if (c < 0) c = 0;
         if (c > CAM_MAX) c = CAM_MAX;
         camX = c;
+
+        // Pit / fall-out: dropped below the level floor -> respawn at the level START (the demo does the same:
+        // y>172 -> initX/initY). Re-enters playState; the respawn flag keeps the music playing and skips the
+        // heavy audio reload, so it's a quick blink rather than a full restart.
+        if ((feetY >> 8) > 240) {
+            respawns++;
+            spcEffect(4, SFX_HURT, 15 * 16 + 8);
+            WaitForVBlank(); setBrightness(0);
+            return ST_PLAY;
+        }
 
         // Level-end trigger: the hero reaches the right edge of the 4800px level -> "Thanks for Playing".
         if ((feetX >> 8) >= LVL_PXW - 40) return ST_END;
@@ -214,11 +231,12 @@ GameState playState(void)
             }
         }
 
-        // --- pick animation (attack > airborne > crouch > run > idle) ---
+        // --- pick animation (hurt > attack > airborne > crouch > run > idle) ---
         // loop=1 cycles forever (idle/run/fall); loop=0 plays once then holds the last frame.
         // The jump RISE and the attack swing are one-shots -- looping them is what made
         // the sword wobble "back and forth" on the way up; only the FALL loops (hair waves).
-        if (attacking)        { animF = A_ATTACK_F; animN = A_ATTACK_N; animSpd = 5; loop = 0; }
+        if (hurtFlag)         { animF = A_HURT_F;   animN = A_HURT_N;   animSpd = 2; loop = 0; }   // staggered recoil
+        else if (attacking)   { animF = A_ATTACK_F; animN = A_ATTACK_N; animSpd = 5; loop = 0; }
         else if (!onGround)   { animSpd = 7;
                                 if (vy < 0) { animF = A_JUMP_F;     animN = 2;            loop = 0; }   // rise: 0->1 once, then hold
                                 else        { animF = A_JUMP_F + 2; animN = A_JUMP_N - 2; } }           // fall: loop 2,3 (hair waves)
@@ -257,17 +275,24 @@ GameState playState(void)
         {
             s16 hx = (feetX >> 8) - camX;
             s16 hy = (feetY >> 8) - SPR_OY;
-            u8  vis = (invuln && (invuln & 2)) ? OBJ_HIDE : OBJ_SHOW;   // blink the hero while invulnerable
-            oamSet(0, hx - HERO_LEFT_DX, hy, 3, facing, 0, facing ? 8 : 0, 0);
-            oamSet(4, hx,                hy, 3, facing, 0, facing ? 0 : 8, 0);
-            oamSetVisible(0, vis); oamSetVisible(4, vis);
+            oamSet(HERO_OAM,     hx - HERO_LEFT_DX, hy, 3, facing, 0, facing ? 8 : 0, 0);
+            oamSet(HERO_OAM + 4, hx,                hy, 3, facing, 0, facing ? 0 : 8, 0);
         }
         enemyUpdate();                               // tick enemy animation/AI
         {
-            s8 kb = enemyCombat(attacking, invuln);  // kills enemies in reach; nonzero = hero got hit
-            if (kb) {                                // start knockback + i-frames, cancel any swing
-                invuln = 60; kbTimer = 10; kbDir = kb; attackTimer = 0;
+            // Demo hurtPlayer(): touching an enemy pops the hero up + shoves it away, plays the hurt SFX, and
+            // staggers it (no movement control) until it lands again. Enemies do NOT deplete health or kill --
+            // the only death is a pit fall. hurtFlag (passed in) blocks a re-hit while already staggered.
+            s8 kb = enemyCombat(attacking, hurtFlag);
+            if (kb) {
+                hurtFlag = 1; hurtDir = kb; onGround = 0;
+                vy = HPOP; vx = (s16)kb * HSHOVE;
+                attackTimer = 0;                     // a hit cancels any swing
                 spcEffect(4, SFX_HURT, 15 * 16 + 8);
+                if (--health == 0) {                 // out of HP -> GAME OVER (bounds the bounce-loop)
+                    WaitForVBlank(); setBrightness(0);
+                    return ST_GAMEOVER;
+                }
             }
         }
         enemyDraw();                                 // position the enemy OBJs (camera-relative)

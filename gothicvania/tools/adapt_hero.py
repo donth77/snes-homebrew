@@ -31,7 +31,8 @@ from adapt_assets import to_indexed
 BOX = 64
 FW  = 160
 SHEETS = [("IDLE", "hero-idle.png"), ("RUN", "hero-run.png"), ("JUMP", "hero-jump.png"),
-          ("CROUCH", "hero-crouch.png"), ("ATTACK", "hero-attack.png")]
+          ("CROUCH", "hero-crouch.png"), ("ATTACK", "hero-attack.png"),
+          ("HURT", "hero-hurt.png")]   # appended LAST so existing frame numbers don't shift (HURT = frame 20)
 
 def features(a):
     # Per-frame anchors. boots-x = centre of the lowest WIDE row (>=5 opaque px = the legs,

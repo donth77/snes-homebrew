@@ -26,6 +26,7 @@ static const u16 enemyDstBase[ENEMY_SLOTS] = {0x1000, 0x1800};
 
 #define EN_RISE  1
 #define EN_WALK  2
+#define EN_DYING 3   // playing the death poof, then despawns
 
 typedef struct {
     u8  active;
@@ -51,6 +52,9 @@ static u8 skelSpawned[N_SKEL_SPAWN];
 #define SKEL_TRIG_TILES 8      // a spawner rises when the player is within this many tiles
 #define SKEL_DESPAWN_PX 200    // free a slot once its skeleton is this far from the player (left behind)
 #define SKEL_REACH_PX   10     // stop shuffling once this close to the player (no combat yet -> don't overlap)
+#define DEATH_RISE_PX   16     // the death flame draws this much HIGHER than the skeleton's feet -- the demo
+                               // spawns it at enemy.y-16 (upper body), so it floats above the hero's sword
+                               // instead of sitting low at the sword's height where the two overlap.
 static s16 SKEL_WALK_SPD;      // 8.8 px/frame, region-scaled (set in enemyInit)
 
 // ROM address of skeleton frame f: a 128-wide band = 4096 bytes (16-wide from gfx4snes -s 64 -R, skeleton
@@ -58,8 +62,9 @@ static s16 SKEL_WALK_SPD;      // 8.8 px/frame, region-scaled (set in enemyInit)
 // crosses a bank boundary (a DMA can't).
 u8 *skeletonFrameSrc(u8 f)
 {
-    if (f < 7) return (u8 *)(&skel_a) + (u32)f * 4096;
-    return (u8 *)(&skel_b) + (u32)(f - 7) * 4096;
+    if (f < 7)  return (u8 *)(&skel_a) + (u32)f * 4096;
+    if (f < 14) return (u8 *)(&skel_b) + (u32)(f - 7) * 4096;
+    return (u8 *)(&skel_c) + (u32)(f - 14) * 4096;          // death frames 14..18
 }
 
 static s8 freeSlot(void)
@@ -125,6 +130,15 @@ void enemyUpdate(void)
     for (i = 0; i < ENEMY_SLOTS; i++) {
         s16 ex, dx;
         if (!en[i].active) continue;
+        if (en[i].state == EN_DYING) {     // play the death poof once, then free the slot
+            if (++en[i].timer >= 6) {
+                u8 rel = (u8)(en[i].frame - SK_DEATH_F + 1);
+                en[i].timer = 0;
+                if (rel >= SK_DEATH_N) { en[i].active = 0; oamSetEx(ENEMY_OAM_BASE + i * 4, OBJ_LARGE, OBJ_HIDE); }
+                else en[i].frame = (u8)(SK_DEATH_F + rel);
+            }
+            continue;                       // no movement / distance-despawn while dying
+        }
         ex = en[i].wx;
         dx = ex - px; if (dx < 0) dx = -dx;
         if (dx > SKEL_DESPAWN_PX) {        // wandered far from the player -> free the slot (one-shot, won't respawn)
@@ -160,6 +174,14 @@ void enemyUpdate(void)
 // SFX). Otherwise, an enemy OVERLAPPING the hero (and the hero not currently invulnerable) damages him --
 // returns the knockback direction (+1 push right, -1 push left, 0 = no hit) for play.c to apply. facing 0 =
 // right, 1 = left. Called each frame from play.c with the attack + invuln state.
+// Attack reach is EDGE-based, not centre-based. The skeleton is 64px wide (art ~44px, centred on wx), so its
+// NEAR edge is ~ENEMY_HALFW closer than its centre. Testing the centre against a bare ~50px reach missed kills
+// where the sword visibly struck the body but the centre sat 50-80px off. So overlap the sword's span ahead of
+// the hero with the skeleton's [wx-HALFW, wx+HALFW]. (The demo does the same: a 30-wide hitbox 39px ahead vs the
+// skeleton's 22-wide body.) facing 0 = right (sword reaches +dx), 1 = left (sword reaches -dx).
+#define SWORD_FWD   56     // sword-tip reach ahead of the hero centre (px)
+#define SWORD_BACK   8     // slight coverage just behind the hero centre
+#define ENEMY_HALFW 22     // skeleton hittable half-width
 s8 enemyCombat(u8 attacking, u8 invuln)
 {
     s16 px = (s16)(feetX >> 8), py = (s16)(feetY >> 8);
@@ -167,12 +189,14 @@ s8 enemyCombat(u8 attacking, u8 invuln)
     u8  i;
     for (i = 0; i < ENEMY_SLOTS; i++) {
         s16 dx, adx, dy, ady;
-        if (!en[i].active) continue;
+        if (!en[i].active || en[i].state == EN_DYING) continue;   // a dying enemy is harmless + not re-killable
         dx = en[i].wx - px; adx = dx < 0 ? -dx : dx;
         dy = en[i].wy - py; ady = dy < 0 ? -dy : dy;
-        if (attacking && ady <= 24 && (facing ? (dx > -50 && dx < 8) : (dx > -8 && dx < 50))) {
-            en[i].active = 0;                                   // killed by the swing
-            oamSetEx(ENEMY_OAM_BASE + i * 4, OBJ_LARGE, OBJ_HIDE);
+        if (attacking && ady <= 26 &&
+            (facing ? (dx > -(SWORD_FWD + ENEMY_HALFW) && dx < (SWORD_BACK + ENEMY_HALFW))
+                    : (dx > -(SWORD_BACK + ENEMY_HALFW) && dx < (SWORD_FWD + ENEMY_HALFW)))) {
+            en[i].state = EN_DYING;                             // start the death poof; despawns when it ends
+            en[i].frame = SK_DEATH_F; en[i].timer = 0;
             spcEffect(4, SFX_KILL, 15 * 16 + 8);
             continue;
         }
@@ -193,6 +217,7 @@ void enemyDraw(void)
         if (!en[i].active || en[i].uploaded == 255) { oamSetVisible(id, OBJ_HIDE); continue; }
         sx = en[i].wx - (s16)camX - 32;   // centre the 64-box on the world x
         sy = en[i].wy - SK_FEET_BY;        // feet on the ground line
+        if (en[i].state == EN_DYING) sy -= DEATH_RISE_PX;   // float the death flame up to the upper body
         if (sx < -64 || sx > 256) { oamSetVisible(id, OBJ_HIDE); continue; }
         oamSetVisible(id, OBJ_SHOW);
         oamSet(id, (u16)sx, (u16)sy, 2, en[i].facing, 0, enemyName[i], ENEMY_PAL);
