@@ -22,10 +22,10 @@ SCR_W, SCR_H = 256, 224
 LOGO_W   = 248                 # scale the 290px logo down to this width (fits 256 with a small margin)
 LOGO_CY  = 130                 # logo vertical centre: BELOW the moon (sprite y28..92) so the moon shows
                                # cleanly ABOVE the title instead of poking out as a nub behind it
-PRESS_CY = 190                 # "PRESS START" vertical centre (low, under the logo; demo: height-60)
+PRESS_CY = 190                 # "PRESS START" vertical centre (low, under the logo)
 
 RED, PURPLE = (214, 28, 28), (60, 2, 133)     # logo ink: bright red + its dark-purple drop shadow
-GOLD = (255, 206, 64)                          # "PRESS START" colour (demo's prompt is warm gold)
+GOLD = (255, 206, 64)                          # "PRESS START" colour (warm gold)
 
 
 def snap_logo():

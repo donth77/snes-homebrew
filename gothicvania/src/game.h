@@ -32,7 +32,7 @@
 //  | 0x3800 BG2 map | 0x4000 BG1 tiles(deco 880) | 0x7800 BG1 map.
 // OBJ region = tiles 0..511 (0x0000..0x2000; OBSEL gap 0 makes 256..511 contiguous at 0x1000). The
 // ground used to sit in 0x1000..0x2000 -- it MOVED to 0x6000 (into space freed by deco tile-streaming)
-// so the enemies get tiles 256..511 (0x1000..0x2000 = 8KB = 4 demo-size 64x64 sprites).
+// so the enemies get tiles 256..511 (0x1000..0x2000 = 8KB = 4 64x64 sprites).
 // CRITICAL: a 64x64 OBJ spans 8 grid-rows = 0x800 words (stride-16 tile read), NOT 0x400. So the moon
 // (name 128) READS 0x0800..0x0F80, occupying the whole 0x0800..0x1000 block -- the enemy band MUST start
 // at 0x1000 (not 0x0C00) or it overlaps the moon's lower half (skeleton renders in moon colours).
@@ -137,17 +137,17 @@ void armSkyGradient(void);     // COLOR-MATH sky gradient on HDMA ch6 (shared by
 u8 *heroFrameSrc(u8 f);
 void setupHero(void);          // load hero palette + frame 0 into the OBJ slot (OBJ0/OBJ4)
 
-// ---- enemy.c : demo-size (64x64) enemies (skeleton / hell-gato / ghost) ----
+// ---- enemy.c : (64x64) enemies (skeleton / hell-gato / ghost) ----
 // Each enemy slot is a 128-wide CONTIGUOUS band uploaded in two 2KB halves like the hero (reliable in the
 // music-shortened VBlank). The skeleton + ghost live in the LEFT 64x64 (1 OBJ, right blank); the hell-gato
 // is ~85px wide so it spans the FULL band as a 2-OBJ metasprite (left + right, name +0/+8 like the hero).
-// Two bands fit the 0x1000..0x2000 OBJ region -> 2 on-screen enemies of ANY type (4 needs WRAM-compositing,
-// see docs/ENEMIES_4_ONSCREEN_PLAN.md). Types share the slots: a slot streams whichever type spawned in it.
+// Two bands fit the 0x1000..0x2000 OBJ region -> 2 on-screen enemies of ANY type (more would need
+// WRAM-compositing). Types share the slots: a slot streams whichever type spawned in it.
 #define ENEMY_SLOTS    2
 #define ENEMY_PAL      2       // OBJ palette 2 = skeleton (+ the shared death poof); hero = 0, moon = 1
 #define GATO_PAL       3       // OBJ palette 3 = hell-gato
 #define GHOST_PAL      4       // OBJ palette 4 = ghost
-// OAM slot order = sprite z-order (lower id = drawn IN FRONT). The demo draws enemies + their death poof ON
+// OAM slot order = sprite z-order (lower id = drawn IN FRONT). 
 // TOP of the hero (the poof pops at the sword tip), so enemies take the front slots, hero behind. Each enemy
 // slot reserves TWO OAM ids (left + right, for the 2-OBJ gato); single-OBJ types hide the right one.
 #define ENEMY_OAM_BASE 0       // enemy slot i -> OBJ ids (i*8) + 0/4: slot0 = 0,4  slot1 = 8,12 (front)

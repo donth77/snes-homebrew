@@ -1,12 +1,12 @@
 /*---------------------------------------------------------------------------------
-    enemy.c — demo-size (64x64) enemies: 3 types sharing 2 streamed VRAM slots.
+    enemy.c — (64x64) enemies: 3 types sharing 2 streamed VRAM slots.
 
     The dynamic-sprite engine can't do 64x64, so enemies upload manually like the hero: each slot is a
     128-wide 4KB band uploaded as two contiguous 2KB halves in VBlank (one DMA setup each -> fits the
     music-shortened VBlank; per-row DMAs starved -> dropped rows). Budgeted AT MOST one band-half per
     VBlank (round-robin), DEFERRED while a level page streams. See [[gothicvania-scroll-latch-flicker]].
 
-    Three enemy types (the demo's game.js), all sharing the 2 slots (a slot streams whichever type spawned
+    Three enemy types, all sharing the 2 slots (a slot streams whichever type spawned
     in it):
       skeleton  - proximity-rises from the ground (6f + RISE sfx), then shuffles TOWARD the player. 1 OBJ.
       hell-gato - paces back and forth (flips on a timer / at walls + pits). ~85px wide -> 2-OBJ metasprite
@@ -51,7 +51,7 @@ static u8  upRR;            // round-robin cursor for the upload budget
 static u8  upSlot = 255;    // slot whose band is mid-upload (255 = none)
 static u8 *upSrc;           // ROM src of the band being uploaded (latched at the top half so both halves match)
 
-// Combined spawn table (the demo's placements): each fires ONCE when the player gets near. tx = tile X.
+// Combined spawn table: each fires ONCE when the player gets near. tx = tile X.
 typedef struct { u16 tx; u8 ty, type; } Spawn;   // tx is a tile col 0..299, so u16 (not u8 -> 284 wraps)
 static const Spawn spawns[] = {
     {10,12,ET_SKEL},{17,12,ET_SKEL},{80,12,ET_SKEL},{147,12,ET_SKEL},{162,12,ET_SKEL},
@@ -66,9 +66,9 @@ static u8 spawned[N_SPAWN];
 #define TRIG_TILES    8      // a spawner fires when the player is within this many tiles
 #define DESPAWN_PX    200    // free a slot once its enemy is this far from the player (left behind)
 #define SKEL_REACH_PX 10     // skeleton stops shuffling once this close to the player
-#define DEATH_RISE_PX 16     // the death flame draws this much HIGHER than the feet (demo: enemy.y-16)
+#define DEATH_RISE_PX 16     // the death flame draws this much HIGHER than the feet (enemy.y-16)
 #define GHOST_DRAW_OY 46     // ghost box-top = wy - this (so the floating body sits around wy)
-#define GHOST_BOB_AMP 50     // ghost vertical bob range (px), down from baseY (the demo's y -> y+50)
+#define GHOST_BOB_AMP 50     // ghost vertical bob range (px), down from baseY (y -> y+50)
 static s16 SKEL_WALK_SPD, GATO_SPD, GHOST_BOB_SPD;   // 8-bit sub-pixel speeds, region-scaled (enemyInit)
 static u16 GATO_TURN;                                 // gato patrol half-period (frames), region-scaled
 
@@ -144,9 +144,9 @@ void enemyInit(void)
     upRR = 0;
     upSlot = 255;
     SKEL_WALK_SPD = snes_50hz ? 154 : 128;   // ~0.5 px/frame shamble (region-equal wall-clock)
-    GATO_SPD      = snes_50hz ? 461 : 384;   // ~1.5 px/frame pace (demo speed 90 px/s)
-    GHOST_BOB_SPD = snes_50hz ? 256 : 213;   // ~0.83 px/frame bob (demo 50px over 1s)
-    GATO_TURN     = snes_50hz ? 167 : 200;   // ~3.3s patrol half-period (demo turnTimerTrigger=200)
+    GATO_SPD      = snes_50hz ? 461 : 384;   // ~1.5 px/frame pace 
+    GHOST_BOB_SPD = snes_50hz ? 256 : 213;   // ~0.83 px/frame bob 
+    GATO_TURN     = snes_50hz ? 167 : 200;   // ~3.3s patrol half-period 
 }
 
 // Spawn (proximity) + tick AI/animation. Main-loop context, so SFX (spcEffect) is fine here.
@@ -236,7 +236,7 @@ void enemyUpdate(void)
 // Combat, both directions. While the hero swings, any enemy within sword reach IN FRONT of him dies (+ KILL
 // sfx). Otherwise an enemy OVERLAPPING the hero (and he's not invulnerable) hurts him -> returns the knockback
 // dir (+1 right / -1 left / 0 = no hit). Reach is EDGE-based: the sword span vs the enemy's [wx +- halfW]
-// body (per type), matching the demo's hitbox-vs-body overlap. facing 0 = right (reaches +dx), 1 = left.
+// body (per type), matching the hitbox-vs-body overlap. facing 0 = right (reaches +dx), 1 = left.
 #define SWORD_FWD  56     // sword-tip reach ahead of the hero centre (px)
 #define SWORD_BACK  8     // slight coverage just behind the hero centre
 s8 enemyCombat(u8 attacking, u8 invuln)

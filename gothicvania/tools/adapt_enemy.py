@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Convert the skeleton enemy into one 64x64 SNES sprite strip (single 16-colour palette).
 
-The hero is kept at full native pixel size (adapt_hero.py: no scaling), so to match the demo's
+The hero is kept at full native pixel size (adapt_hero.py: no scaling), so to match the
 hero:enemy proportions the enemies are ALSO native size in a 64x64 OBJ box -- NOT downscaled (the
 earlier 32x32 version looked tiny next to the 64x64 hero). The skeleton's source canvas is 44x52 with
 the FEET fixed at canvas-row 51 in EVERY frame (verified: rise + walk both bottom-out at y51); the rise

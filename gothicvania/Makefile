@@ -23,6 +23,16 @@ all: bitmaps $(ROMNAME).sfc
 clean: cleanBuildRes cleanRom cleanGfx
 
 #---------------------------------------------------------------------------------
+# FROZEN ART: the original CC0 source art pack was removed from the repo, so the
+# tools/adapt_*.py / build_*.py converters below can no longer RUN (their inputs are
+# gone) — they are kept only as readable references for the conversion techniques.
+# The committed res/*.png, res/*.bin and res/level/* ARE the source of truth, and the
+# converter scripts are intentionally older than their outputs so `make` never tries
+# to re-run them. gfx4snes (res/*.png -> .pic) and mid2it (the kept .mid files) still
+# run normally. To regenerate art, restore the original pack from git history first.
+#---------------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------------
 # Level data: tools/build_level.py reshapes the 16x16 map into our 8x8 tileset
 # (res/level/tileset.png) + pre-expanded streaming pages (pagesA/B.bin) + collision.bin.
 # The .stamp keeps that single multi-output run from re-firing per output. gfx4snes -R

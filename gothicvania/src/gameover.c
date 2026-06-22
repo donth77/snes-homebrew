@@ -1,10 +1,10 @@
 /*---------------------------------------------------------------------------------
     gameover.c — the GAME OVER state, shown when the hero takes 3 contact hits.
 
-    The demo has no health; enemies just knock you back, which can loop forever if you're
-    cornered. So this build gives the hero 3 HP (no on-screen UI) -- the 3rd hit ends the
-    run here. A single "GAME OVER" overlay (BG0) on a dark backdrop; START -> title.
-    Structurally identical to end.c (the "THANKS FOR PLAYING" screen), just a red overlay.
+    Enemies knock the hero back, which can loop forever if you're cornered, so the hero has 3 HP
+    (no on-screen UI) -- the 3rd hit ends the run here. A single "GAME OVER" overlay (BG0) on a
+    dark backdrop; START -> title. Structurally identical to end.c (the "THANKS FOR PLAYING"
+    screen), just a red overlay.
 ---------------------------------------------------------------------------------*/
 #include "game.h"
 

@@ -109,7 +109,7 @@ hero_pal:       .incbin "res/hero.pal"
 hero_palend:
 .ends
 
-; --- Enemies (CC0, adapted by tools/adapt_enemy.py): demo-size 64x64 OBJ frames. Each frame is a 128-wide
+; --- Enemies (CC0, adapted by tools/adapt_enemy.py):  64x64 OBJ frames. Each frame is a 128-wide
 ;     band (skeleton in the LEFT 64x64, right 64 blank) so it's a CONTIGUOUS 4KB block enemy.c DMAs in two
 ;     2KB halves like the hero (reliable in a tight VBlank). 14 frames x 4KB = 56KB -> two <32KB banks.
 ;     Own 16-colour palette -> OBJ palette 2. ---

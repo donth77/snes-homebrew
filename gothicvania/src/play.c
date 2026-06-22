@@ -86,8 +86,8 @@ GameState playState(void)
     GRAV  = snes_50hz ? 30   : 21;
     JUMP  = snes_50hz ? -870 : -725;
     VYMAX = snes_50hz ? 1229 : 1024;
-    HSHOVE = snes_50hz ? 512  : 427;             // enemy knockback shove (demo vx = +-100 px/s)
-    HPOP   = snes_50hz ? -768 : -640;            // enemy knockback pop-up (demo vy = -150 px/s)
+    HSHOVE = snes_50hz ? 512  : 427;             // enemy knockback shove
+    HPOP   = snes_50hz ? -768 : -640;            // enemy knockback pop-up 
     feetX = (s32)80 << 8;
     feetY = (s32)192 << 8;                            // start standing on the ground
     vx = vy = 0;
@@ -194,8 +194,8 @@ GameState playState(void)
             } else onGround = 0;
         } else onGround = 0;
 
-        // Spikes: the demo's two pits (cols 122-125, 166-180) are a 1-tile-deep dip with spikes on the row-13
-        // floor; the demo resets you, we take 1 HP. Touch = a small hop up + 1 HP + a brief cooldown. NO
+        // Spikes: 1-tile-deep dip with spikes on the row-13
+        // floor; we take 1 HP. Touch = a small hop up + 1 HP + a brief cooldown. NO
         // horizontal shove and NO input lock (those turned the shallow dip into an inescapable "wall") -- so
         // you can immediately jump/steer out, or jump the pit entirely (pit 2 has platforms to hop across).
         if (spikeCD) spikeCD--;
@@ -215,9 +215,9 @@ GameState playState(void)
         if (c > CAM_MAX) c = CAM_MAX;
         camX = c;
 
-        // Pit / fall-out: dropped below the level floor -> respawn at the level START (the demo does the same:
-        // y>172 -> initX/initY). Re-enters playState; the respawn flag keeps the music playing and skips the
-        // heavy audio reload, so it's a quick blink rather than a full restart.
+        // Pit / fall-out: dropped below the level floor -> respawn at the level START. Re-enters playState;
+        // the respawn flag keeps the music playing and skips the heavy audio reload, so it's a quick blink
+        // rather than a full restart.
         if ((feetY >> 8) > 240) {
             respawns++;
             spcEffect(4, SFX_HURT, 15 * 16 + 8);
@@ -297,7 +297,7 @@ GameState playState(void)
         }
         enemyUpdate();                               // tick enemy animation/AI
         {
-            // Demo hurtPlayer(): touching an enemy pops the hero up + shoves it away, plays the hurt SFX, and
+            // touching an enemy pops the hero up + shoves it away, plays the hurt SFX, and
             // staggers it (no movement control) until it lands again. Enemies do NOT deplete health or kill --
             // the only death is a pit fall. hurtFlag (passed in) blocks a re-hit while already staggered.
             s8 kb = enemyCombat(attacking, hurtFlag);

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Demo OGG sound effects -> ONE SNESMod effects module (res/effectssfx.it), combined into the soundbank
+"""OGG sound effects -> ONE SNESMod effects module (res/effectssfx.it), combined into the soundbank
 by smconv (Makefile AUDIOFILES, with the -f flag that marks the first module as the effects bank).
 
 The CC0 pack ships 5 SFX: jump, attack, hurt (player), kill, rise (enemies -- ready for Phase 3). We
