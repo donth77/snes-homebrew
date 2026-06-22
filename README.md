@@ -1,5 +1,9 @@
 # snes-homebrew
 
+[![Platform: SNES](https://img.shields.io/badge/platform-SNES-8b5cf6)](https://en.wikipedia.org/wiki/Super_Nintendo_Entertainment_System)
+[![Language: C](https://img.shields.io/badge/language-C-00599c?logo=c&logoColor=white)](https://en.wikipedia.org/wiki/C_(programming_language))
+[![PVSnesLib 4.5.0](https://img.shields.io/badge/PVSnesLib-4.5.0-f7882f)](https://github.com/alekmaul/pvsneslib)
+
 Original SNES games written in **C with [PVSnesLib](https://github.com/alekmaul/pvsneslib)**, built
 to strict hardware constraints: **LoROM, ≤512 KB, no enhancement chips, no SRAM, a single ROM that
 runs on both NTSC (60 Hz) and PAL (50 Hz)** via runtime region detection, and works on real
