@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Reshape the demo's 16x16 Tiled level into TWO independent SNES backgrounds -- exactly the
-way the demo itself is layered -- for our own page-streaming renderer (no PVSnesLib map engine).
+"""Reshape the 16x16 Tiled level into TWO independent SNES backgrounds -- 
+for our own page-streaming renderer (no PVSnesLib map engine).
 
-Why two layers (this replaced a single flattened background): the demo keeps its grass/ground
-on one layer and its decorations (trees, gravestones, crosses) on another, and composites them
-live. Flattening both into one SNES background forces a per-pixel composite, which multiplies
+Why two layers (this replaced a single flattened background): Flattening both into one SNES background forces a per-pixel composite, which multiplies
 the unique 8x8 tile count past the 1024-per-background limit -> a lossy merge -> recoloured /
 fused object pixels. Keeping them as two backgrounds makes the tile counts ADD, not multiply:
 
@@ -93,7 +91,7 @@ def declutter(img):
 def build_layer(name, palette, tag):
     """Render -> quantise to its own <=16-colour palette -> dedup 8x8 UP TO H/V FLIP (free on the
     SNES) -> emit compact tileset.png + streaming pages with (tile|palette|flip) entries. No lossy
-    merge: each demo layer is already < 1024 tiles, so this is pixel-EXACT (asserted below)."""
+    merge."""
     img = render_layer(name)
     spk = declutter(img)
     qimg, nc = to_indexed(img, transparent=True, budget=16, name=tag)
@@ -165,7 +163,7 @@ def build_layer(name, palette, tag):
           f"pages {len(pb)}B")
     return N
 
-# Two backgrounds, exactly the demo's two layers (no flattening -> no merge -> pixel-exact):
+# Two backgrounds
 # Palette slots leave CGRAM 0..15 for BG2's 2bpp parallax (which can only address low CGRAM):
 #   BG2 mountains = entry 0 (CGRAM 0..3), deco = entry 1 (CGRAM 16..31), ground = entry 2 (32..47).
 ng = build_layer("Main Layer", 2, "ground")          # ground + grass  -> BG0 front,  palette 2

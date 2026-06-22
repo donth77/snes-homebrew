@@ -28,7 +28,7 @@ BG_W, BG_H = 64, 32                                  # BG2 tilemap = 512x256
 GBAND = 13                                           # first cell-row of the graveyard band (px 104). The
                                                      # mountains end here and the gravestones (closer layer)
                                                      # rise in front, so the mountain bases recede behind
-                                                     # them rather than being "cut" -- like the demo.
+                                                     # them rather than being "cut" 
 GRV = [(0, 0, 34), (11, 31, 60), (28, 48, 70)]       # graveyard 3-colour sub-palette (teal)
 
 def nearest_idx(img, pal):

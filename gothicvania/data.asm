@@ -1,6 +1,6 @@
 .include "hdr.asm"
 
-; --- Level = TWO backgrounds, exactly the demo's two layers (built by tools/build_level.py;
+; --- Level = TWO backgrounds, exactly the two layers (built by tools/build_level.py;
 ;     rendered by our own lockstep page-streamer, not PVSnesLib's map engine). Splitting the
 ;     layers instead of flattening keeps each tileset under 1024 tiles, so both are pixel-exact
 ;     with no lossy merge. Each .incbin stays under WLA's 32KB section (= one LoROM bank); a DMA
@@ -21,7 +21,7 @@ groundpagesB:   .incbin "res/level/ground_pagesB.bin"   ; pages 15..18
 .ends
 
 ; Decoration layer (Back: trees + gravestones + crosses) -> BG1 (behind), palette 1. STREAMED: only the
-; on-screen pages' tiles are resident (a 2-slot window), freeing ~11KB of VRAM for demo-size enemy
+; on-screen pages' tiles are resident (a 2-slot window), freeing ~11KB of VRAM for enemy
 ; sprites. build_stream.py emits per-page tiles (bank-packed into deco_pt0..2 so no page-DMA crosses a
 ; bank) + per-page window-local maps; the renderer DMAs a page's tiles into its parity slot.
 .section ".rodata_decopal" superfree
@@ -65,7 +65,7 @@ sky_coldata:    .incbin "res/level/sky_coldata.bin"
 .ends
 
 ; Title screen overlays: "GothicVania" logo -> BG0, "PRESS START" -> BG1 (both 4bpp), composited over
-; the live moon + scrolling mountains + sky-gradient scene (the demo's TitleScreen, sans credits/instr).
+; the live moon + scrolling mountains + sky-gradient scene (the TitleScreen, sans credits/instr).
 .section ".rodata_title" superfree
 title_logo_tiles:  .incbin "res/title_logo.pic"
 title_logo_tilesend:
@@ -103,4 +103,19 @@ hero_c:         .incbin "res/hero_c.bin"   ; frames 14..19
 .section ".rodata_heropal" superfree
 hero_pal:       .incbin "res/hero.pal"
 hero_palend:
+.ends
+
+; --- Enemies (CC0, adapted by tools/adapt_enemy.py): demo-size 64x64 OBJ frames. Each frame is a 128-wide
+;     band (skeleton in the LEFT 64x64, right 64 blank) so it's a CONTIGUOUS 4KB block enemy.c DMAs in two
+;     2KB halves like the hero (reliable in a tight VBlank). 14 frames x 4KB = 56KB -> two <32KB banks.
+;     Own 16-colour palette -> OBJ palette 2. ---
+.section ".rodata_skel_a" superfree
+skel_a:         .incbin "res/skel_a.bin"      ; 128-wide 4KB frame bands, frames 0..6
+.ends
+.section ".rodata_skel_b" superfree
+skel_b:         .incbin "res/skel_b.bin"      ; frames 7..13 (14 frames x 4KB = 56KB -> two <32KB banks)
+.ends
+.section ".rodata_skelpal" superfree
+skelpal:        .incbin "res/skeleton.pal"
+skelpalend:
 .ends

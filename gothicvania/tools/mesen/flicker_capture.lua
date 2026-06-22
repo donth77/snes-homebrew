@@ -1,6 +1,6 @@
 -- GOTHICVANIA FLICKER CAPTURE  (run this in Mesen's Script Window)
 -- No buttons needed. Just JUMP onto the grass platform where the ground flickers (do it a few times).
--- It auto-saves every airborne frame (screenshot + game state) to /tmp/play/. Then tell Claude.
+-- It auto-saves every airborne frame (screenshot + game state) to /tmp/play/.
 local n, post = 0, 0
 local log = io.open("/tmp/play/log.txt", "w")
 local function r16(a) return emu.read16(a, emu.memType.snesMemory) end

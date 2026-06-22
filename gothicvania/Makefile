@@ -23,7 +23,7 @@ all: bitmaps $(ROMNAME).sfc
 clean: cleanBuildRes cleanRom cleanGfx
 
 #---------------------------------------------------------------------------------
-# Level data: tools/build_level.py reshapes the demo's 16x16 map into our 8x8 tileset
+# Level data: tools/build_level.py reshapes the 16x16 map into our 8x8 tileset
 # (res/level/tileset.png) + pre-expanded streaming pages (pagesA/B.bin) + collision.bin.
 # The .stamp keeps that single multi-output run from re-firing per output. gfx4snes -R
 # keeps every tile (no reduction/reorder) so page tile indices stay 1:1 — NO tmx2snes.
@@ -95,4 +95,16 @@ res/hero_a.bin: res/hero.pic
 	dd if=res/hero.pic of=res/hero_c.bin bs=4096 skip=14 2>/dev/null
 	touch data.asm
 
-bitmaps: res/hero_a.bin res/level/.stamp res/level/ground_tileset.pic res/level/deco_pt0.bin res/level/parallax_tiles.pic res/level/sky_coldata.bin res/moon.pic res/title_logo.pic
+# Enemies: tools/adapt_enemy.py packs each enemy's animation frames into one 64x64 strip (native scale like the hero).
+# gfx4snes -s 8 keeps PLAIN 8-wide raster order (64 contiguous tiles/frame)
+# -- NOT -s 64, which pairs consecutive frames into a 16-wide layout that's awkward to per-row-DMA from.
+res/skeleton.png src/skeleton_anim.h: tools/adapt_enemy.py
+	python3 tools/adapt_enemy.py
+
+res/skeleton.pic: res/skeleton.png
+	$(GFXCONV) -s 64 -o 16 -u 16 -R -t png -i res/skeleton.png
+	dd if=res/skeleton.pic of=res/skel_a.bin bs=4096 count=7 2>/dev/null   # frames 0..6  (4KB bands)
+	dd if=res/skeleton.pic of=res/skel_b.bin bs=4096 skip=7  2>/dev/null   # frames 7..13 (each <32KB bank)
+	touch data.asm
+
+bitmaps: res/hero_a.bin res/skeleton.pic res/level/.stamp res/level/ground_tileset.pic res/level/deco_pt0.bin res/level/parallax_tiles.pic res/level/sky_coldata.bin res/moon.pic res/title_logo.pic

@@ -1,7 +1,7 @@
 /*---------------------------------------------------------------------------------
     play.c — the PLAY state: the walkable graveyard level.
 
-    The level is TWO backgrounds, exactly the way the demo is layered (no flattening ->
+    The level is TWO backgrounds (no flattening ->
     no lossy tile merge -> pixel-exact): BG0 = ground+grass (front), BG1 = decorations
     (behind). Both stream the 4800px level in lockstep (64x32 two-page ping-pong; pages
     DMA'd from ROM), and Mode-1 priority keeps BG0's grass in front of BG1's decoration
@@ -20,6 +20,8 @@ GameState playState(void)
     u8  animFrame = 0, lastAnimF = 255, lastGfx = 255, heroGfx = 0;
     u8  heroDmaQueue = 0, heroQueuedGfx = 0;   // hero frame uploaded as 2x 2KB halves (one per VBlank)
     u8  attackTimer = 0;
+    u8  invuln = 0, kbTimer = 0;                // i-frames after a hit + knockback timer (input locked)
+    s8  kbDir = 0;                              // knockback direction (-1 left, +1 right)
     u16 prevPad = 0;
     s16 WALK, GRAV, JUMP, VYMAX;
     // --- deco tile-streaming state (persists across frames; fresh each playState entry) ---
@@ -62,6 +64,7 @@ GameState playState(void)
 
     setupHero();                                 // player.c: hero palette + frame 0 into OBJ0/OBJ4
     setupMoon(0);                                // level.c: moon+glow OBJ, BEHIND the mountains
+    enemyInit();                                 // enemy.c: skeleton palette + (milestone 1) static test skeletons
 
     // Graveyard parallax: arm the BG2 scroll-banding HDMA (ch3) FIRST. Two bands: the mountains (top 104
     // lines) at a fixed offset, the graveyard (rest) at 0.25x. Per frame we then update ONLY the graveyard's
@@ -75,7 +78,7 @@ GameState playState(void)
     armSkyGradient();   // level.c: ch6 COLOR-MATH sky -- MUST be after setParallaxScrolling (bank-clobber)
 
     // Physics + start position set BEFORE the screen comes on, so we can place the hero in the OAM now.
-    // Matched to the Phaser demo (game.js): move 150 px/s, gravity 300 px/s^2, jump 170 px/s
+    // move 150 px/s, gravity 300 px/s^2, jump 170 px/s
     // -> ~48px high, ~68-frame (1.13s) hang. Converted to 8.8 px/frame, scaled x1.2 / x1.44 at 50Hz.
     WALK  = snes_50hz ? 768  : 640;
     GRAV  = snes_50hz ? 30   : 21;
@@ -92,11 +95,14 @@ GameState playState(void)
         oamSet(0, hx - HERO_LEFT_DX, hy, 3, facing, 0, facing ? 8 : 0, 0);
         oamSet(4, hx,                hy, 3, facing, 0, facing ? 0 : 8, 0);
     }
+    enemyDraw();                                  // place the test skeletons too, before the screen turns on
 
     spcLoad(MOD_BAROQUE);                         // load the in-game Baroque track (during force blank)
     spcLoadEffect(SFX_JUMP);                      // (re)load the player SFX into the sound region (loading
     spcLoadEffect(SFX_ATTACK);                    // a module resets it, so this must follow spcLoad)
     spcLoadEffect(SFX_HURT);
+    spcLoadEffect(SFX_RISE);                      // skeleton rise (enemyUpdate fires it on spawn)
+    spcLoadEffect(SFX_KILL);                      // enemy death (enemyCombat fires it on a kill)
     WaitForVBlank();                              // upload the OAM (hero placed + moon) BEFORE the screen on
     setScreenOn();
     spcPlay(0);                                   // play the music (loops); SFX fire via spcEffect()
@@ -128,11 +134,12 @@ GameState playState(void)
         // Attack triggers on a fresh press while grounded. Once attacking, the d-pad is
         // ignored -- movement and facing are locked until the swing finishes (so pressing
         // attack while running stops you, and holding a direction mid-swing does nothing).
-        if ((pad & ATTACK_KEYS) && !(prevPad & ATTACK_KEYS) && !attackTimer && onGround) {
+        if ((pad & ATTACK_KEYS) && !(prevPad & ATTACK_KEYS) && !attackTimer && onGround && !kbTimer) {
             attackTimer = A_ATTACK_N * 5;
             spcEffect(4, SFX_ATTACK, 15 * 16 + 8);   // pitch 4 = 16kHz, vol 15, pan centre
         }
         if (attackTimer) attackTimer--;
+        if (invuln)     invuln--;                    // i-frames tick down after a hit
         attacking = (attackTimer != 0);
 
         crouching = (onGround && (pad & KEY_DOWN) && !attacking);
@@ -140,7 +147,8 @@ GameState playState(void)
             if (mv & KEY_LEFT)  { vx = -WALK; facing = 1; }
             if (mv & KEY_RIGHT) { vx =  WALK; facing = 0; }
         }
-        if ((pad & JUMP_KEYS) && !(prevPad & JUMP_KEYS) && onGround && !attacking) {
+        if (kbTimer) { vx = (s16)kbDir * WALK; kbTimer--; }   // knockback overrides movement while staggered
+        if ((pad & JUMP_KEYS) && !(prevPad & JUMP_KEYS) && onGround && !attacking && !kbTimer) {
             vy = JUMP; onGround = 0;
             spcEffect(4, SFX_JUMP, 15 * 16 + 8);     // pitch 4 = 16kHz, vol 15, pan centre
         }
@@ -208,7 +216,7 @@ GameState playState(void)
 
         // --- pick animation (attack > airborne > crouch > run > idle) ---
         // loop=1 cycles forever (idle/run/fall); loop=0 plays once then holds the last frame.
-        // The demo's jump RISE and the attack swing are one-shots -- looping them is what made
+        // The jump RISE and the attack swing are one-shots -- looping them is what made
         // the sword wobble "back and forth" on the way up; only the FALL loops (hair waves).
         if (attacking)        { animF = A_ATTACK_F; animN = A_ATTACK_N; animSpd = 5; loop = 0; }
         else if (!onGround)   { animSpd = 7;
@@ -249,11 +257,21 @@ GameState playState(void)
         {
             s16 hx = (feetX >> 8) - camX;
             s16 hy = (feetY >> 8) - SPR_OY;
+            u8  vis = (invuln && (invuln & 2)) ? OBJ_HIDE : OBJ_SHOW;   // blink the hero while invulnerable
             oamSet(0, hx - HERO_LEFT_DX, hy, 3, facing, 0, facing ? 8 : 0, 0);
             oamSet(4, hx,                hy, 3, facing, 0, facing ? 0 : 8, 0);
+            oamSetVisible(0, vis); oamSetVisible(4, vis);
         }
+        enemyUpdate();                               // tick enemy animation/AI
+        {
+            s8 kb = enemyCombat(attacking, invuln);  // kills enemies in reach; nonzero = hero got hit
+            if (kb) {                                // start knockback + i-frames, cancel any swing
+                invuln = 60; kbTimer = 10; kbDir = kb; attackTimer = 0;
+                spcEffect(4, SFX_HURT, 15 * 16 + 8);
+            }
+        }
+        enemyDraw();                                 // position the enemy OBJs (camera-relative)
 
-        spcProcess();                                // stream the music each frame
         WaitForVBlank();
         // CPU scroll-register writes MUST land in VBlank, NOT active display. The parallax HDMA (ch3)
         // writes BG3's offset every visible scanline, and ALL BG-offset registers ($210D/$210F/$2113...)
@@ -286,12 +304,26 @@ GameState playState(void)
         }
         // Upload ONE 2KB half of the queued hero frame this VBlank (top half, then bottom), deferred on
         // page-stream frames (those already move 4KB). Halving the per-frame VBlank DMA stops the overrun.
-        if (heroDmaQueue && !streaming) {
-            u8 hh = (heroDmaQueue == 2) ? 0 : 1;
-            dmaCopyVram(heroFrameSrc(heroQueuedGfx) + (u32)hh * (HERO_BANDSZ / 2),
-                        HERO_VRAM + hh * (HERO_BANDSZ / 4), HERO_BANDSZ / 2);
-            heroDmaQueue--;
+        {
+            // The hero half (2KB) and an enemy frame (2KB, 8 per-row DMAs) in the SAME VBlank overran it
+            // when the VBlank was even slightly short (e.g. the redundant idle-frame upload on the first
+            // play frames) -> the enemy's later rows spilled into active display = a half-drawn skeleton.
+            // So never upload a hero frame AND an enemy frame in one VBlank: the enemy waits a frame.
+            u8 heroUp = (heroDmaQueue && !streaming);
+            if (heroUp) {
+                u8 hh = (heroDmaQueue == 2) ? 0 : 1;
+                dmaCopyVram(heroFrameSrc(heroQueuedGfx) + (u32)hh * (HERO_BANDSZ / 2),
+                            HERO_VRAM + hh * (HERO_BANDSZ / 4), HERO_BANDSZ / 2);
+                heroDmaQueue--;
+            }
+            enemyVBlankUpload(streaming || heroUp);   // one pending enemy frame, unless streaming/hero own this VBlank
         }
+
+        // Stream the music AFTER the VBlank DMA, in active display. snesmod's spcProcess can be heavy when
+        // the song (re)loads; running it BEFORE WaitForVBlank pushed the loop past VBlank start, shortening
+        // the VBlank so the enemy's 8-row DMA spilled into active display -> a half-drawn skeleton. In
+        // active display its delay is harmless (the next WaitForVBlank re-syncs).
+        spcProcess();
     }
     return ST_END;
 }

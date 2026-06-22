@@ -2,7 +2,7 @@
 -- The game logs camX/feetX/input/stream every frame to a wrapping buffer and FREEZES it 24
 -- frames after a scroll stall while moving (the input-freeze signature). It also freezes on
 -- SELECT, so if you SEE a glitch and nothing auto-captured, press SELECT right then.
--- When frozen, this dumps /tmp/glitch.csv and shows a message. Then tell Claude.
+-- When frozen, this dumps /tmp/glitch.csv and shows a message. 
 local CAMX,FEET,FLAG = 0x7E200C, 0x7E240C, 0x7E280C
 local HEAD,COUNT,DONE = 0x7F000A, 0x7F000C, 0x7F0012
 local M = emu.memType.snesMemory
@@ -26,7 +26,7 @@ local function chk()
       math.floor(fl/16)%2, math.floor(fl/32)%2))
   end
   f:close(); done = true
-  emu.displayMessage("CAPTURE", "Glitch captured -> /tmp/glitch.csv  (tell Claude)")
+  emu.displayMessage("CAPTURE", "Glitch captured -> /tmp/glitch.csv")
 end
 emu.addEventCallback(chk, emu.eventType.startFrame)
 emu.displayMessage("CAPTURE", "Recording. Reproduce the glitch (or press SELECT the instant you see it).")

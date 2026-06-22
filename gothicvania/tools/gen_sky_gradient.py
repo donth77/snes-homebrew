@@ -8,7 +8,7 @@ HDMA to ADD a per-scanline fixed colour to it via register $2132 (COLDATA = the 
 colour). This NEVER writes CGRAM, so it cannot corrupt the palette -- a normal per-scanline colour-math
 effect. Transfer mode 2 writes $2132 twice per line: $20|red5 then $80|blue5 (green stays = backdrop).
 
-Colours are sampled to match the DEMO: a DARK, muted night sky -- deep indigo at the top easing to a
+Colours are sampled: a DARK, muted night sky -- deep indigo at the top easing to a
 muted purple around the moon -- so the bright pink moon sprite STANDS OUT against it (not a hot-pink sky
 the moon drowns in). The moon's glow is cut at the moon-band luminance so its warm halo meets the cool
 sky at equal brightness (a natural halo, the moon still pops). Outputs:
@@ -26,15 +26,15 @@ OUT  = os.path.join(ROOT, "res", "level")
 
 NLINES = 130                   # scanlines the gradient covers (the sky band; below it the level is opaque)
 
-# Per-scanline sky colour, ABSOLUTE (r, b) -- green is held at the backdrop's (the demo sky is ~0 green).
-# Sampled/scaled from the demo: deep indigo top -> muted purple moon band (a touch brighter than the demo
+# Per-scanline sky colour, ABSOLUTE (r, b) -- green is held at the backdrop's .
+# Sampled/scaled: deep indigo top -> muted purple moon band 
 # so the 5-bit ramp has enough steps to stay smooth) -> easing dark toward the horizon. Bluer up high,
-# more balanced in the moon band, exactly like the demo. Moon sprite sits at y=28..92 (centre 60).
+# more balanced in the moon band. Moon sprite sits at y=28..92 (centre 60).
 # Gentle darkening from the moon band down to the horizon (a muted purple, NOT black -- black merged
 # with the dark mountains into a "rectangle"). The mountains are cut to jagged peaks in adapt_parallax,
 # so the sky shows below them and there's nothing to merge into.
 CP = [(0, 12, 44), (24, 46, 74), (60, 60, 90), (92, 48, 74), (108, 30, 54), (NLINES - 1, 18, 42)]
-GREEN = 2                      # near-zero green, like the demo (-> 0 in 5-bit, a pure indigo/purple)
+GREEN = 2                      # near-zero green
 # MOONLIT = the moon-band colour; the moon glow is cut at its luminance so the warm halo meets the cool
 # sky at equal brightness. Bright pink DISK (from the sprite) then pops against this dark sky.
 MOONLIT = (56, GREEN, 80)

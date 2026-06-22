@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
-"""Convert the skeleton enemy's frames into one 32x32 SNES sprite strip (single 16-colour palette),
-feet-anchored so it doesn't slide as the rise/walk cycles play. Enemies are SMALL OBJs (32x32) so several
-fit the 2KB enemy VRAM band (freed by the 64x64 moon). The source frames are 44x52, scaled down to fit.
+"""Convert the skeleton enemy into one 64x64 SNES sprite strip (single 16-colour palette).
+
+The hero is kept at full native pixel size (adapt_hero.py: no scaling), so to match the demo's
+hero:enemy proportions the enemies are ALSO native size in a 64x64 OBJ box -- NOT downscaled (the
+earlier 32x32 version looked tiny next to the 64x64 hero). The skeleton's source canvas is 44x52 with
+the FEET fixed at canvas-row 51 in EVERY frame (verified: rise + walk both bottom-out at y51); the rise
+"emergence" is encoded as the figure growing upward from that fixed ground line. So we don't anchor
+per-frame like the hero -- we just paste the pre-aligned canvas into the box at a fixed offset, which
+keeps walk feet-stable AND preserves the rise. Feet land at box-row SK_FEET_BY.
 
 Animations (in order; offsets emitted to src/skeleton_anim.h):
-  rise  = skeleton-rise-clothed-1..6  (plays once, then -> walk)
+  rise  = skeleton-rise-clothed-1..6  (plays once on spawn, then -> walk)
   walk  = skeleton-clothed-1..8        (loops; the skeleton shuffles toward the player)
 
-Output: res/skeleton.png (32 x 32*N strip). The Makefile runs gfx4snes -s 32 -R; enemy.c DMAs the current
-32x32 frame (512 bytes) into a per-enemy slot of the enemy VRAM band.
+Output: res/skeleton.png (64 x 64*N strip). The Makefile runs gfx4snes -s 8 -R (8-wide raster); enemy.c uploads the
+current 64x64 frame into a per-enemy slot of the enemy VRAM band via a per-row DMA (the 8-wide frame is
+spread into the 16-wide OBJ tile grid, 8 rows x 256 bytes -- see enemy.c enemyUploadFrame).
 """
 import os, sys
 import numpy as np
@@ -18,32 +25,32 @@ from adapt_assets import to_indexed
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EN   = os.path.join(ROOT, "assets", "gothicvania-cemetery-files", "Assets", "Characters", "Enemies")
-BOX  = 32
 SK   = os.path.join(EN, "skeleton")
+BOX  = 64
+# Source canvas is 44x52 with the feet fixed at canvas-row CANVAS_FEET. Paste so that row lands on
+# box-row SK_FEET_BY (near the bottom, leaving a small margin) -> the tallest pose (45px) fits with
+# headroom and the feet sit at a known box row for OAM positioning + collision.
+CANVAS_FEET = 51
+SK_FEET_BY  = 60
 
 ANIMS = [
     ("RISE", [os.path.join(SK, "skeleton-rise-clothed", f"skeleton-rise-clothed-{i}.png") for i in range(1, 7)]),
     ("WALK", [os.path.join(SK, "Sprites", "walk-clothed", f"skeleton-clothed-{i}.png") for i in range(1, 9)]),
 ]
 
-# Uniform scale so the tallest frame fits BOX with a 1px margin (keeps every anim the same scale).
-raws = [np.array(Image.open(p).convert("RGBA")) for _, ps in ANIMS for p in ps]
-maxh = max(int(np.where(a[:, :, 3] > 0)[0].max() - np.where(a[:, :, 3] > 0)[0].min() + 1) for a in raws)
-scale = (BOX - 1) / maxh
-
 def conv(path):
     a = np.array(Image.open(path).convert("RGBA"))
-    ys, xs = np.where(a[:, :, 3] > 0)
-    # crop to content, scale uniformly, then place feet on the bottom row, centred horizontally
-    crop = a[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
-    nw, nh = max(1, round(crop.shape[1] * scale)), max(1, round(crop.shape[0] * scale))
-    s = np.array(Image.fromarray(crop).resize((nw, nh), Image.LANCZOS))
-    s[s[:, :, 3] < 128] = 0
+    ch, cw = a.shape[0], a.shape[1]
     out = np.zeros((BOX, BOX, 4), np.uint8)
-    x0 = (BOX - nw) // 2
-    y0 = BOX - nh                                    # feet on the bottom row
-    xw = min(nw, BOX - x0); yh = min(nh, BOX - y0)
-    out[y0:y0 + yh, x0:x0 + xw] = s[:yh, :xw]
+    x0 = (BOX - cw) // 2                              # centre the canvas horizontally
+    y0 = SK_FEET_BY - CANVAS_FEET                     # canvas feet-row -> box SK_FEET_BY
+    # clip to the box (canvas should fit, but be safe)
+    sx0 = max(0, -x0); sy0 = max(0, -y0)
+    dx0 = max(0, x0);  dy0 = max(0, y0)
+    w = min(cw - sx0, BOX - dx0); h = min(ch - sy0, BOX - dy0)
+    seg = a[sy0:sy0 + h, sx0:sx0 + w].copy()
+    seg[seg[:, :, 3] < 128] = 0                       # hard alpha (OBJ index 0 = transparent)
+    out[dy0:dy0 + h, dx0:dx0 + w] = seg
     return out
 
 frames, counts = [], {}
@@ -53,21 +60,27 @@ for name, paths in ANIMS:
     counts[name] = len(paths)
 
 N = len(frames)
-strip = np.zeros((BOX * N, BOX, 4), np.uint8)
+# 128-wide strip: the 64x64 skeleton in the LEFT half, right 64 blank. gfx4snes -s 64 then packs each frame
+# as a CONTIGUOUS 16-wide 4KB band, so enemy.c DMAs it in two 2KB halves with one setup each -- reliable in
+# the music-shortened VBlank, unlike 8 strided per-row DMAs (whose overhead got starved -> dropped rows).
+# Costs VRAM (the blank half) so only 2 fit; the 4-enemy version needs WRAM-compositing (a later pass).
+STRIP_W = 128
+strip = np.zeros((BOX * N, STRIP_W, 4), np.uint8)
 for i, f in enumerate(frames):
-    strip[i * BOX:i * BOX + BOX] = f
+    strip[i * BOX:i * BOX + BOX, 0:BOX] = f
 idx, nc = to_indexed(strip, transparent=True, budget=16, name="skeleton")
 idx.save(os.path.join(ROOT, "res", "skeleton.png"))
 
 with open(os.path.join(ROOT, "src", "skeleton_anim.h"), "w") as h:
-    h.write("// generated by tools/adapt_enemy.py -- skeleton: 32x32 OBJ frames, feet-anchored\n")
+    h.write("// generated by tools/adapt_enemy.py -- skeleton: 64x64 OBJ frames, feet at row %d\n" % SK_FEET_BY)
     h.write(f"#define SK_FRAMES {N}\n")
+    h.write(f"#define SK_FEET_BY {SK_FEET_BY}\n")
     pos = 0
     for name, _ in ANIMS:
         h.write(f"#define SK_{name}_F {pos}\n#define SK_{name}_N {counts[name]}\n")
         pos += counts[name]
-print(f"skeleton: {N} frames 32x32 (scale {scale:.2f}), palette {nc} colours")
+print(f"skeleton: {N} frames 64x64 (native size, feet@{SK_FEET_BY}), palette {nc} colours")
 
 # preview the strip on a dark sky, for eyeballing
 prev = Image.new("RGB", (BOX, BOX * N), (24, 12, 40)); prev.paste(idx.convert("RGB"), (0, 0))
-prev.resize((BOX * 4, BOX * N * 4 // 1, ), Image.NEAREST).save("/tmp/skeleton_strip.png")
+prev.resize((BOX * 3, BOX * N * 3), Image.NEAREST).save("/tmp/skeleton_strip.png")

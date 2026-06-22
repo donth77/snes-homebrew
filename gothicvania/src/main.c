@@ -2,8 +2,8 @@
     main.c — entry point + game-state dispatcher.
 
     gothicvania is an original Gothicvania Cemetery homebrew (CC0 assets, LoROM, no
-    special chips, single ROM on NTSC + PAL). Flow mirrors the demo: TITLE -> PLAY ->
-    END (the demo's TitleScreen / PlayGame / GameOver). Each state owns its VRAM,
+    special chips, single ROM on NTSC + PAL). Flow: TITLE -> PLAY ->
+    END. Each state owns its VRAM,
     palettes and HDMA, runs its own loop, and returns the next state to run here.
         title.c  -> titleState()   play.c -> playState()   end.c -> endState()
     Shared world/player state: game.c (+ game.h). Renderer data + the shared night-sky

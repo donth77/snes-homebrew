@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
 """Title-screen overlays -> two 4bpp BGs (BG0 = logo, BG1 = "PRESS START"), composited in main.c OVER
-the live moon + scrolling mountains + sky-gradient scene (exactly the demo's TitleScreen: bg-moon +
-bg-mountains + the title logo, no level/ground). The demo also shows a credits line and an instructions
-screen -- the user dropped both.
+the live moon + scrolling mountains + sky-gradient scene.
 
 Two separate BGs (not one) so "PRESS START" can BLINK by toggling its layer on/off while the logo stays.
-The demo logo is 290px wide (> the SNES 256) so we scale it down to fit; it's 2 colours (red + a dark
-purple shade) so it stays crisp. "PRESS START" replaces the demo's keyboard "PRESS ENTER" (SNES pad).
 
 Outputs (4bpp .pic + 16-col .pal + 32x32 .map, like adapt_parallax emits its own):
   res/title_logo.pic/.pal/.map    BG0, palette block 1 (CGRAM 16..31)

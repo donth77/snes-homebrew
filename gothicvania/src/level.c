@@ -36,7 +36,7 @@ u16 decoPageTileBytes(u16 p)
 }
 
 // 0 = empty, 1 = full solid (walls + floor), 2 = one-way platform (lands from the top only,
-// like the demo's setCollision(false,false,true,false)). Off the sides/below = solid wall.
+// Off the sides/below = solid wall.
 u8 cellv(s16 col, s16 row)
 {
     if (col < 0 || col >= LVL_COLS || row >= LVL_ROWS) return 1;
@@ -49,7 +49,7 @@ u8 cellv(s16 col, s16 row)
 // (BG2 prio 1) pass in front of it AND it's the first thing to drop if a scanline ever overruns
 // 34 sprite-tiles (it never does: moon 16 + hero 16 = 32). Mountain BG tiles have transparent
 // gaps so this smooth moon+glow shows through at pixel resolution -> no tile-stepped moon edge.
-// prio 0 = behind the mountains (the play scene: the ridge passes in front of the moon, demo-faithful).
+// prio 0 = behind the mountains (the play scene: the ridge passes in front of the moon).
 // prio 1 = in front of the mountains (the title: a clean, stable moon disk while the mountains drift,
 // since a drifting BG2 silhouette would otherwise occlude/shimmer the small moon sprite).
 void setupMoon(u8 prio)

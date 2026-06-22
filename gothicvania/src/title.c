@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------------
-    title.c — the TITLE state (the demo's TitleScreen).
+    title.c — the TITLE state 
 
     Moon + slowly-drifting mountains + the COLOR-MATH sky gradient, with the
     "GothicVania" logo (BG0) and a blinking "PRESS START" (BG1) over it. No level/
@@ -38,13 +38,13 @@ GameState titleState(void)
     // Moon (OBJ) over the sky -- same as the play scene; clear all other sprites first (e.g. a hero left
     // over from a previous playthrough on the END -> TITLE loop).
     oamClear(0, 128);
-    setupMoon(0);                                // moon BEHIND the mountains (like the demo + play scene)
+    setupMoon(0);                                // moon BEHIND the mountains 
 
     bgSetEnable(0); bgSetEnable(1); bgSetEnable(2);
     bgSetScroll(0, 0, 0); bgSetScroll(1, 0, 0); bgSetScroll(2, 0, 0);
 
     // Sky gradient (HDMA ch6) -- same COLOR-MATH backdrop ramp as play. No parallax banding (ch3): the
-    // title scrolls the mountains as ONE slow layer (the demo's bg-mountains drift), via bgSetScroll(2).
+    // title scrolls the mountains as ONE slow layer, via bgSetScroll(2).
     armSkyGradient();
 
     spcLoad(MOD_TITLE);                          // load the title song (during force blank)
@@ -53,8 +53,8 @@ GameState titleState(void)
 
     for (;;) {
         u16 pad = padsCurrent(0);
-        mtn += 51;                                  // ~0.2 px/frame drift (8.8 fixed point), like the demo
-        if (++blink >= 42) { blink = 0; pressOn ^= 1; }   // blink PRESS START (~0.7s, the demo's timer)
+        mtn += 51;                                  // ~0.2 px/frame drift (8.8 fixed point) 
+        if (++blink >= 42) { blink = 0; pressOn ^= 1; }   // blink PRESS START (~0.7s)
         if ((pad & KEY_START) && !(prevPad & KEY_START)) return ST_PLAY;
         prevPad = pad;
 

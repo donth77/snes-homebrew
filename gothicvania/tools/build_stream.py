@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Step 1 of the demo-size-enemy work: turn the deco layer (BG1) from ALL-tiles-resident into a
+"""Step 1 of the enemy work: turn the deco layer (BG1) from ALL-tiles-resident into a
 per-page STREAMED layer, so most of its 28KB of VRAM is freed for bigger enemy sprites.
 
 This is pure codegen on top of build_level.py's existing output -- it does NOT touch build_level.py
