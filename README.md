@@ -33,6 +33,10 @@ A SNES action-platformer demo set in a haunted graveyard.
 - **Audio:** original looping music (separate in-game and title tracks) + sound effects, via snesmod.
 - **Compliant:** one 512 KB LoROM, runtime region detection, no special chips, no SRAM.
 
+> **Art credit:** the graphics are adapted from the **[Gothicvania Cemetery](https://ansimuz.itch.io/gothicvania-cemetery)**
+> pack by **Luis Zuno ([ansimuz](https://ansimuz.itch.io/))**, released under CC0. Reworked here to fit
+> SNES VRAM and palette constraints.
+
 ## hello-world-region (`hello-world-region/`)
 
 A region-aware "hello world" that proves the full pipeline end to end
@@ -135,5 +139,5 @@ confirm there are no VRAM writes outside VBlank.
 ## Hard constraints (do not violate)
 
 LoROM only · ROM ≤ 512 KB · no special/enhancement chips · no SRAM (`CARTRIDGETYPE $00`,
-`SRAMSIZE $00`) · single ROM with runtime NTSC/PAL detection · must run on real hardware · 100%
-original assets & code.
+`SRAMSIZE $00`) · single ROM with runtime NTSC/PAL detection · must run on real hardware · original
+code, with art adapted from CC0 sources (see Art credit above).
